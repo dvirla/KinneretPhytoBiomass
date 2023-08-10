@@ -1,0 +1,181 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+from sklearn.manifold import TSNE
+from itertools import product
+from typing import Union, Dict
+import numpy as np
+
+
+def boxplot(df: pd.DataFrame) -> None:
+    # Create the boxplot
+    plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
+    sns.boxplot(data=df, x='group_num', y='sum_biomass_ug_ml')
+    plt.title('Boxplot of sum_biomass_ug_ml by group_num')
+    plt.xlabel('Group Number')
+    plt.ylabel('Sum Biomass (ug/ml)')
+    plt.show()
+
+def remove_outliers_IQR(df: pd.DataFrame, q1: float=0.1, q3: float=0.9) -> pd.DataFrame:
+    # Calculate the IQR for each group
+    grouped = df.groupby('group_num')
+    Q1 = grouped['sum_biomass_ug_ml'].quantile(q1)
+    Q3 = grouped['sum_biomass_ug_ml'].quantile(q3)
+    IQR = Q3 - Q1
+
+    # Define a function to filter outliers based on the IQR
+    def filter_outliers(group):
+        group_num = group.name
+        Q1_val = Q1[group_num]
+        Q3_val = Q3[group_num]
+        iqr_val = IQR[group_num]
+        return group[(group['sum_biomass_ug_ml'] >= Q1_val - 1.5 * iqr_val) &
+                    (group['sum_biomass_ug_ml'] <= Q3_val + 1.5 * iqr_val)]
+
+    # Apply the filter_outliers function to each group
+    filtered_df = grouped.apply(filter_outliers).reset_index(drop=True)
+
+    return filtered_df
+
+def correlation_per_group(df: pd.DataFrame) -> None:
+    columns_to_drop = ['year', 'month', 'Depth']
+    correlations_per_group = df.drop(columns=columns_to_drop).groupby('group_num').corr()
+
+    for group_number in df.group_num.unique():
+        correlation_for_group = correlations_per_group.loc[group_number]
+
+        # Create a heatmap using seaborn
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(correlation_for_group, annot=True, cmap='coolwarm', fmt=".2f")
+        plt.title(f"Correlation Heatmap for Group {group_number}")
+        plt.show()
+
+def plot_tsne(orig_df: pd.DataFrame) -> None:
+    # Find the row index with the highest 'sum_biomass_ug_ml' value for each 'year_month' and signal group
+    df = orig_df.copy()
+    # df['year_month_week'] = df['year'].astype(str) + '-' + df['month'].astype(str).str.zfill(2)+ '-' + df['week'].astype(str).str.zfill(2)
+
+    df = df.sort_values(by=['year', 'month', 'week', 'group_num'])
+
+    # Step 2: Calculate the mean over 'year', 'month', and 'group_num'
+    signal_columns = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sensor']
+
+    idx = df.groupby(['year', 'month', 'week'])[signal_columns + ['sum_biomass_ug_ml']].idxmax()
+
+    df = df.loc[idx.sum_biomass_ug_ml.values].reset_index(drop=True)
+
+    # Features for t-SNE
+    features = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sensor']
+
+    # Argument dictionary for t-SNE
+    tsne_vars = {
+        'perplexity': [5], #, 10, 30, 50],
+        'learning_rate': [50], #, 200, 500, 1000],
+        'init': ['random'], #, 'pca'],
+        'angle': [0.5]
+        # 'angle': [0.2, 0.5, 0.8]
+    }
+
+    # Loop through all combinations of t-SNE arguments and plot the graphs
+    for perplexity, learning_rate, init, angle in product(tsne_vars['perplexity'], tsne_vars['learning_rate'],
+                                                        tsne_vars['init'], tsne_vars['angle']):
+        # t-SNE for dimensionality reduction to 2 dimensions
+        tsne = TSNE(n_components=2, perplexity=perplexity, learning_rate=learning_rate, init=init, angle=angle,
+                random_state=42)
+        reduced_features = tsne.fit_transform(df[features])
+
+        # Add the reduced features to the DataFrame
+        df['t-SNE_1'] = reduced_features[:, 0]
+        df['t-SNE_2'] = reduced_features[:, 1]
+
+        # Plotting the scatter plot with size representing 'sum_biomass_ug_ml'
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(data=df, x='t-SNE_1', y='t-SNE_2', hue='group_num', size='sum_biomass_ug_ml',
+                        palette='tab10', sizes=(20, 600), legend='brief')
+        plt.title(f't-SNE Visualization - Perplexity: {perplexity}, Learning Rate: {learning_rate}, Init: {init}, Angle: {angle}')
+        plt.xlabel('t-SNE Component 1')
+        plt.ylabel('t-SNE Component 2')
+        plt.legend(title='Group Number', loc='upper right', bbox_to_anchor=(1.3, 1))
+        plt.show()
+
+# Min-Max scaling function
+def min_max_scaling(df: Union[pd.DataFrame, pd.Series]) -> Union[pd.DataFrame, pd.Series]:
+    return (df - df.min()) / (df.max() - df.min())
+
+def plot_fluorprobe_prediction(df: pd.DataFrame, fluor_groups_map: Dict) -> None:
+    # Generate unique colors for each unique value of 'Depth'
+    unique_depths = df['Depth'].unique()
+    depth_colors = plt.cm.tab20(np.linspace(0, 1, len(unique_depths)))
+
+    # Visualize predictions along with test points
+    fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+
+    for i, group_num in enumerate(fluor_groups_map.keys()):
+        row = i // 2
+        col = i % 2
+        
+        group_y_test = df[df['group_num'] == group_num]['sum_biomass_ug_ml']
+        group_y_fluor_pred = df[df['group_num'] == group_num][fluor_groups_map[group_num]]
+        group_depth = df[df['group_num'] == group_num]['Depth']
+        
+        # Scale 'group_y_test' and 'group_y_fluor_pred' to the same scale
+        group_y_test_scaled = min_max_scaling(group_y_test)
+        group_y_fluor_pred_scaled = min_max_scaling(group_y_fluor_pred)
+
+        # Get the index of the corresponding unique depth color for each data point
+        depth_color_idx = [np.where(unique_depths == d)[0][0] for d in group_depth]
+
+        # Create a scatter plot with unique colors for each unique value of 'Depth'
+        axes[row, col].scatter(group_y_test_scaled, group_y_fluor_pred_scaled, c=depth_colors[depth_color_idx], alpha=0.5)
+        axes[row, col].plot([group_y_test_scaled.min(), group_y_test_scaled.max()], [group_y_test_scaled.min(), group_y_test_scaled.max()], 'r--', lw=2)  # Add a diagonal line for reference
+        axes[row, col].set_xlabel('Actual Test Values')
+        axes[row, col].set_ylabel('Fluor Predicted Values')
+        axes[row, col].set_title(f'Group {group_num} - Actual vs. Fluor Predicted')
+
+    # Create a separate scatter plot for the global legend
+    legend_handles = []
+    for depth, color in zip(unique_depths, depth_colors):
+        legend_handles.append(plt.scatter([], [], c=color, label=depth))
+
+    # Place the legend outside the subplots on the top-right corner
+    fig.legend(handles=legend_handles, title='Depth', loc='upper right', bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_corr_per_feature_per_group(df: pd.DataFrame, fluor_groups_map: Dict) -> None:
+    # Visualize predictions along with test points
+    signal_cols = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sensor']
+    for group_num in fluor_groups_map.keys():
+        fig, axes = plt.subplots(3, 3, figsize=(16, 12))
+
+        for i, col_name in enumerate(signal_cols):
+            row = i // 3
+            col = i % 3
+
+            group_y = df[df['group_num'] == group_num]['sum_biomass_ug_ml']
+            feat = df[df['group_num'] == group_num][col_name]
+
+            axes[row, col].scatter(group_y, feat)
+            axes[row, col].set_xlabel('Biomass [ug/ml]')
+            axes[row, col].set_ylabel(f'Signal {col_name}')
+
+        fig.suptitle(f'Group {group_num}')
+        plt.tight_layout()
+        plt.show()
+
+def groups_pie_chart(df: pd.DataFrame, by_biomass=False) -> None:
+    # Count the occurrences of each unique group_num
+    if by_biomass:
+        group_counts = df.groupby('group_num')['sum_biomass_ug_ml'].sum()
+    else:
+        group_counts = df['group_num'].value_counts()
+
+    # Create a pie chart
+    plt.figure(figsize=(8, 8))  # Adjust the figure size as needed
+    plt.pie(group_counts, labels=group_counts.index, autopct='%1.1f%%', startangle=140)
+    plt.title('Proportion of Each Unique group_num')
+    plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+    # Display the pie chart
+    plt.show()
