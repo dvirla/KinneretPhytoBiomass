@@ -14,6 +14,7 @@ import statsmodels.api as sm
 from scipy.stats import norm
 import shap
 from eda_utils import min_max_scaling
+from sklearn.compose import TransformedTargetRegressor
 
 
 def get_model(model_name: str, **kwargs):
@@ -33,20 +34,21 @@ def get_model(model_name: str, **kwargs):
         return BayesianRidge()
     return xgb.XGBRegressor(**kwargs)
 
-def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.2) -> Tuple[Dict, Dict]:
+def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.2, biomass_factor=10) -> Tuple[Dict, Dict]:
     regression_models = {}
     preds_real_y = {}
 
     for group_num in df['group_num'].unique():
         group_df = df[df['group_num'] == group_num]
         X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
-        y = group_df['sum_biomass_ug_ml']
+        y = group_df['sum_biomass_ug_ml'] * biomass_factor
         if test_size == 0:
             X_train, y_train = X, y
         else:
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
         model = get_model(model_name, **group_kwargs.get(group_num, {}))
         # model = Pipeline([('scaler', StandardScaler()), ('model', model)])
+        model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
         model.fit(X_train, y_train)
         regression_models[group_num] = model
         
@@ -84,13 +86,13 @@ def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid:
         
     return best_params_per_group
 
-def eval_test(regression_models: Dict, test_df: pd.DataFrame) -> None:
+def eval_test(regression_models: Dict, test_df: pd.DataFrame, biomass_factor=10) -> None:
     preds_real_y = {}
     for group_num in regression_models.keys():
         group_df = test_df[test_df['group_num'] == group_num]
         model = regression_models[group_num]
         y_pred = model.predict(group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1))
-        y_test = group_df['sum_biomass_ug_ml']
+        y_test = group_df['sum_biomass_ug_ml'] * biomass_factor
 
         preds_real_y[group_num] = {'real': y_test, 'preds': y_pred}
     
@@ -120,14 +122,14 @@ def eval_preds(preds_real_y: Dict) -> None:
         print(f"R-squared: {r2}\n")
     print(f"Total MSE: {total_mse/len(preds_real_y.keys())}, Total R-squared: {total_r2/len(preds_real_y.keys())}")
 
-def residual_analysis(df: pd.DataFrame, regression_models: Dict) -> None:
+def residual_analysis(df: pd.DataFrame, regression_models: Dict, biomass_factor=10) -> None:
     fig, axes = plt.subplots(nrows=7, ncols=2, figsize=(15,20))
     for i, group_num in enumerate(regression_models.keys()):
         ax_row = i % 7
         group_df = df[df['group_num'] == group_num]
         model = regression_models[group_num]
         group_y_pred = model.predict(group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1))
-        group_y_test = group_df['sum_biomass_ug_ml']
+        group_y_test = group_df['sum_biomass_ug_ml'] * biomass_factor
 
         residuals = group_y_test - group_y_pred
 
@@ -179,13 +181,13 @@ def plot_shap_values(df: pd.DataFrame, models_dict: Dict, df_test: pd.DataFrame)
         
     return shap_values_list
 
-def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map: Dict, fluor_test_df: pd.DataFrame) -> None:
+def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map: Dict, fluor_test_df: pd.DataFrame, biomass_factor=10) -> None:
     # Visualize predictions along with test points
     fig, axes = plt.subplots(len(fluor_groups_map), 2, figsize=(13, 20))
 
     for i, group_num in enumerate(fluor_groups_map.keys()):
         group_X_test = df[df['group_num'] == group_num]
-        group_y_test = df[df['group_num'] == group_num]['sum_biomass_ug_ml']
+        group_y_test = df[df['group_num'] == group_num]['sum_biomass_ug_ml'] * biomass_factor
         group_y_fluor_pred = fluor_test_df[fluor_test_df['group_num'] == group_num][fluor_groups_map[group_num]]
         
         # Scale 'group_y_test' and 'group_y_fluor_pred' to the same scale
