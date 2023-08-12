@@ -58,6 +58,37 @@ def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.
         
     return regression_models, preds_real_y
 
+def train_iterative(model_name: str, df: pd.DataFrame, group_order: List[int], group_kwargs: Dict={}, test_size=0.2, biomass_factor=10) -> Tuple[Dict, Dict]:
+    regression_models = {}
+    preds_real_y = {}
+
+    for group_num in group_order:  # Use the provided order for group iteration
+        group_df = df[df['group_num'] == group_num]
+        X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
+        y = group_df['sum_biomass_ug_ml'] * biomass_factor
+        
+        # Add previous predictions as features
+        for prev_group_num in regression_models.keys():
+            prev_model = regression_models[prev_group_num]
+            prev_preds = prev_model.predict(X)
+            X[f'preds_group_{prev_group_num}'] = prev_preds
+        
+        if test_size == 0:
+            X_train, y_train = X, y
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+        
+        model = get_model(model_name, **group_kwargs.get(group_num, {}))
+        # model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
+        model.fit(X_train, y_train)
+        regression_models[group_num] = model
+        
+        if test_size != 0:
+            y_pred = model.predict(X_test)
+            preds_real_y[group_num] = {'real': y_test, 'preds': y_pred}
+        
+    return regression_models, preds_real_y
+
 def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid: Dict = {}) -> Dict:
     best_params_per_group = {}
 
@@ -86,6 +117,28 @@ def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid:
         
     return best_params_per_group
 
+
+def eval_test_iterative(regression_models: Dict, test_df: pd.DataFrame, group_order: List[int], biomass_factor=10) -> None:
+    preds_real_y = {}
+    
+    for i, group_num in enumerate(group_order):
+        group_df = test_df[test_df['group_num'] == group_num]
+        model = regression_models[group_num]
+        
+        # Add previous predictions as features
+        X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
+        for prev_group_num in group_order[:i]:
+            prev_model = regression_models[prev_group_num]
+            prev_preds = prev_model.predict(X)
+            X[f'preds_group_{prev_group_num}'] = prev_preds
+        
+        y_pred = model.predict(X)
+        y_test = group_df['sum_biomass_ug_ml'] * biomass_factor
+
+        preds_real_y[group_num] = {'real': y_test, 'preds': y_pred}
+    
+    eval_preds(preds_real_y)
+    
 def eval_test(regression_models: Dict, test_df: pd.DataFrame, biomass_factor=10) -> None:
     preds_real_y = {}
     for group_num in regression_models.keys():
