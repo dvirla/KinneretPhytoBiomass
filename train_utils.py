@@ -1,6 +1,6 @@
 import xgboost as xgb
 from sklearn.svm import SVR
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression, ElasticNet, Lasso, Ridge, BayesianRidge
@@ -47,8 +47,8 @@ def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.
         else:
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
         model = get_model(model_name, **group_kwargs.get(group_num, {}))
-        # model = Pipeline([('scaler', StandardScaler()), ('model', model)])
-        model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
+        model = Pipeline([('scaler', MinMaxScaler()), ('model', model)])
+        # model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
         model.fit(X_train, y_train)
         regression_models[group_num] = model
         
@@ -79,6 +79,7 @@ def train_iterative(model_name: str, df: pd.DataFrame, group_order: List[int], g
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
         
         model = get_model(model_name, **group_kwargs.get(group_num, {}))
+        model = Pipeline([('scaler', MinMaxScaler()), ('model', model)])
         # model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
         model.fit(X_train, y_train)
         regression_models[group_num] = model
@@ -102,7 +103,7 @@ def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid:
 
         # Set up the parameter grid for the grid search
         grid_search = GridSearchCV(
-            estimator=get_model(model_name),
+            estimator=Pipeline([('scaler', MinMaxScaler()), ('model', get_model(model_name))]),
             param_grid=param_grid,
             scoring='neg_mean_squared_error',  # Negative MSE as scoring metric
             cv=5,
