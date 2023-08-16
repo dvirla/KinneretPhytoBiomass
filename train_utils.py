@@ -218,8 +218,8 @@ def plot_shap_values(df: pd.DataFrame, models_dict: Dict, df_test: pd.DataFrame)
         y_pred = model.predict(X)
         
         # Compute the Shapley values for the model
-        explainer = shap.Explainer(model)
-        shap_values = explainer.shap_values(X, check_additivity=False)
+        explainer = shap.Explainer(model.predict, X)
+        shap_values = explainer(X)
         
         # Store the Shapley values for this model in the list
         shap_values_list[group_num] = shap_values
