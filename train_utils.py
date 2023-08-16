@@ -47,7 +47,7 @@ def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.
         else:
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
         model = get_model(model_name, **group_kwargs.get(group_num, {}))
-        model = Pipeline([('scaler', MinMaxScaler()), ('model', model)])
+        model = Pipeline([('scaler', StandardScaler()), ('model', model)])
         # model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
         model.fit(X_train, y_train)
         regression_models[group_num] = model
