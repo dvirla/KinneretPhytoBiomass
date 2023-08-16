@@ -266,3 +266,83 @@ def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map
         axes[i, 1].set_title(f'Group {group_num} - Actual vs. Fluor Predicted')
 
     plt.show()
+
+
+def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd.DataFrame, fluor_groups_map: Dict, biomass_factor=100) -> pd.DataFrame:
+    # Initialize an empty dictionary to store the predictions for each model and group
+    all_predictions = {
+        'xgb': {},
+        'svr': {},
+        'elf': {},
+        'lr': {}
+    }
+
+    # Iterate through each group number
+    for group_num in df_test['group_num'].unique():
+        group_data = df_test[df_test['group_num'] == group_num].drop(['group_num'], axis=1)
+        
+        # Get the real values from the DataFrame
+        y_true = group_data['sum_biomass_ug_ml'] * biomass_factor
+        
+        # Get predictions for each model and store them in the dictionary
+        for model_name in all_predictions.keys():
+            predictions = regression_models[model_name][group_num].predict(group_data.drop(columns=['sum_biomass_ug_ml']))
+            all_predictions[model_name][group_num] = predictions
+
+    # Create a table comparing RMSE and R-squared for all models in all groups over the test set
+    results = []
+
+    for group_num in df_test['group_num'].unique():
+        group_data = df_test[df_test['group_num'] == group_num].drop(['group_num'], axis=1)
+        y_true = group_data['sum_biomass_ug_ml'] * biomass_factor
+        
+        for model_name in all_predictions.keys():
+            predictions = all_predictions[model_name][group_num]
+            rmse = mean_squared_error(y_true, predictions, squared=False)
+            r_squared = r2_score(y_true, predictions)
+            results.append((group_num, model_name, rmse, r_squared))
+
+    comparison_df = pd.DataFrame(results, columns=['Group', 'Model', 'RMSE', 'R-squared'])
+
+    # Create a table-like structure for the plots
+
+    # Number of groups and models
+    num_groups = len(df_test['group_num'].unique())
+    num_models = len(all_predictions)
+
+    # Set the size of the subplots
+    fig, axs = plt.subplots(num_groups, num_models + 1, figsize=(12, 16))
+
+    # Iterate through each group number
+    for i, group_num in enumerate(sorted(df_test['group_num'].unique())):
+        group_data = df_test[df_test['group_num'] == group_num].drop(['group_num'], axis=1)
+        y_true = group_data['sum_biomass_ug_ml'] * biomass_factor
+        y_fp_pred = fp_df[fp_df['group_num'] == group_num]['sum_biomass_ug_ml']
+        
+        # Scale 'group_y_test' and 'group_y_fluor_pred' to the same scale
+        y_test_scaled = min_max_scaling(y_true)
+        y_fluor_pred_scaled = min_max_scaling(y_fp_pred)
+        
+        # Iterate through each model type
+        for j, model_name in enumerate(all_predictions.keys()):
+            predictions = all_predictions[model_name][group_num]
+            
+            # Scatter plot
+            axs[i, j].scatter(y_true, predictions)
+            axs[i, j].set_xlabel('True Values')
+            axs[i, j].set_ylabel('Predictions')
+            axs[i, j].set_title(f'{model_name} - Group {group_num}')
+            axs[i, j].plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--', lw=2)  # Add a diagonal line for reference
+        
+        if group_num in fluor_groups_map.keys():
+            # Create a scatter plot to compare fluorprobe's predicted values and actual test values
+            axs[i, num_models].scatter(y_test_scaled, y_fluor_pred_scaled)
+            axs[i, num_models].plot([y_test_scaled.min(), y_test_scaled.max()], [y_test_scaled.min(), y_test_scaled.max()], 'r--', lw=2)  # Add a diagonal line for reference
+            axs[i, num_models].set_xlabel('Actual Test Values')
+            axs[i, num_models].set_ylabel('Fluor Predicted Values')
+            axs[i, num_models].set_title(f'Group {group_num} - Actual vs. Fluor Predicted')
+
+    plt.tight_layout()
+    plt.show()
+
+    return comparison_df
