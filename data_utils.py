@@ -80,6 +80,9 @@ def get_fluorprobe_data(path: str) -> pd.DataFrame:
     # Filtering measurements with depts below 3 meters since the fluorprobe has low-reliablity around 1.5 meters deep
     fp_df = fp_df[fp_df.depth >= 1.5]
 
+    fp_df.drop_duplicates(['week', 'year', 'month', 'depth'], inplace=True)
+
+
     return fp_df
 
 def merge_fp_biomass_df(fp_df: pd.DataFrame, biomass_df: pd.DataFrame) -> pd.DataFrame:
