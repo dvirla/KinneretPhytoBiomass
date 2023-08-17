@@ -163,3 +163,4 @@ data/
 keys.py
 checkpoints/
 wandb/
+*.pkl
