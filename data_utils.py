@@ -46,7 +46,7 @@ def get_fluorprobe_data(path: str) -> pd.DataFrame:
     fp_df = pd.read_csv(path)
     fp_df = fp_df[fp_df['station'] == 'A'].reset_index(drop=True)
     fp_df = fp_df[['Date_time', 'Date','depth', 'Trans 700 nm', 'LED 3 525 nm', 'LED 4  570 nm', 'LED 5  610 nm',
-                'LED 6  370 nm', 'LED 7  590 nm', 'LED 8  470 nm', 'Pressure','Temp Sensor', 
+                'LED 6  370 nm', 'LED 7  590 nm', 'LED 8  470 nm', 'Pressure', 'Temp Sample', 'Yellow substances',
                     'Green Algae', 'Bluegreen', 'Diatoms', 'Cryptophyta', 'Total conc']]
 
     color_names = {
@@ -58,8 +58,9 @@ def get_fluorprobe_data(path: str) -> pd.DataFrame:
         'LED 7  590 nm': 'brown', # yellow_2?
         'LED 8  470 nm': 'blue',
         'Pressure': 'pressure',
-    #     'Temp LEDs': 'temp_led',
-        'Temp Sensor': 'temp_sensor'
+        # 'Temp Sensor': 'temp_sensor',
+        'Temp Sample': 'temp_sample',
+        'Yellow substances': 'yellow_sub'
     }
     fp_df.rename(columns=color_names, inplace=True)
     fp_df.dropna(inplace=True)
