@@ -14,7 +14,7 @@ import statsmodels.api as sm
 from scipy.stats import norm
 import shap
 from eda_utils import min_max_scaling
-from sklearn.compose import TransformedTargetRegressor
+import numpy as np
 
 
 def get_model(model_name: str, **kwargs):
@@ -42,13 +42,17 @@ def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.
         group_df = df[df['group_num'] == group_num]
         X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
         y = group_df['sum_biomass_ug_ml'] * biomass_factor
+        # Add some noise to y
+        noise_factor = 0.08
+        noise_scale = noise_factor * (np.max(y) - np.min(y))
+        noise = np.random.normal(scale=noise_scale, size=y.shape)
+        y = y + noise
         if test_size == 0:
             X_train, y_train = X, y
         else:
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
         model = get_model(model_name, **group_kwargs.get(group_num, {}))
         model = Pipeline([('scaler', StandardScaler()), ('model', model)])
-        # model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
         model.fit(X_train, y_train)
         regression_models[group_num] = model
         
