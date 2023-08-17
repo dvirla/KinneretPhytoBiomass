@@ -34,7 +34,7 @@ def get_model(model_name: str, **kwargs):
         return BayesianRidge()
     return xgb.XGBRegressor(**kwargs)
 
-def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.2, biomass_factor=10) -> Tuple[Dict, Dict]:
+def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.2, biomass_factor=10, do_noise=False) -> Tuple[Dict, Dict]:
     regression_models = {}
     preds_real_y = {}
 
@@ -42,11 +42,12 @@ def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.
         group_df = df[df['group_num'] == group_num]
         X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
         y = group_df['sum_biomass_ug_ml'] * biomass_factor
-        # Add some noise to y
-        noise_factor = 0.08
-        noise_scale = noise_factor * (np.max(y) - np.min(y))
-        noise = np.random.normal(scale=noise_scale, size=y.shape)
-        y = y + noise
+        if do_noise:
+            # Add some noise to y
+            noise_factor = 0.08
+            noise_scale = noise_factor * (np.max(y) - np.min(y))
+            noise = np.random.normal(scale=noise_scale, size=y.shape)
+            y = y + noise
         if test_size == 0:
             X_train, y_train = X, y
         else:
