@@ -86,10 +86,11 @@ def get_fluorprobe_data(path: str) -> pd.DataFrame:
     return fp_df
 
 def merge_fp_biomass_df(fp_df: pd.DataFrame, biomass_df: pd.DataFrame) -> pd.DataFrame:
-    fp_df['depth_discrete'] = fp_df['depth'].apply(lambda x: min(biomass_df['Depth'], key=lambda y: abs(y - x)))
+    if 'depth_discrete' not in fp_df.columns:
+        fp_df['depth_discrete'] = fp_df['depth'].apply(lambda x: min(biomass_df['Depth'], key=lambda y: abs(y - x)))
 
     fp_df.rename(columns={'depth_discrete': 'Depth'}, inplace=True)
-    fp_df.drop('depth', axis=1, inplace=True)
+    # fp_df.drop('depth', axis=1, inplace=True)
     fp_df.drop_duplicates(inplace=True)
 
     result_df = fp_df.merge(biomass_df, on=['week', 'year', 'month', 'Depth'])
