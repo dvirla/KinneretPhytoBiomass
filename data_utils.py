@@ -85,26 +85,27 @@ def get_fluorprobe_data(path: str) -> pd.DataFrame:
 
     return fp_df
 
-def merge_fp_biomass_df(fp_df: pd.DataFrame, biomass_df: pd.DataFrame) -> pd.DataFrame:
-    if 'depth_discrete' not in fp_df.columns:
-        fp_df['depth_discrete'] = fp_df['depth'].apply(lambda x: min(biomass_df['Depth'], key=lambda y: abs(y - x)))
+def merge_fp_biomass_df(fp_df: pd.DataFrame, biomass_df: pd.DataFrame, is_train=True) -> pd.DataFrame:
+    if is_train:
+        if 'depth_discrete' not in fp_df.columns:
+            fp_df['depth_discrete'] = fp_df['depth'].apply(lambda x: min(biomass_df['Depth'], key=lambda y: abs(y - x)))
 
-    fp_df.rename(columns={'depth_discrete': 'Depth'}, inplace=True)
-    # fp_df.drop('depth', axis=1, inplace=True)
-    fp_df.drop_duplicates(inplace=True)
+        fp_df.rename(columns={'depth_discrete': 'Depth'}, inplace=True)
+        # fp_df.drop('depth', axis=1, inplace=True)
+        fp_df.drop_duplicates(inplace=True)
 
-    result_df = fp_df.merge(biomass_df, on=['week', 'year', 'month', 'Depth'])
+        result_df = fp_df.merge(biomass_df, on=['week', 'year', 'month', 'Depth'])
+    else:
+        # Merge df1 and df2 on the common columns ['week', 'year', 'month']
+        merged_df = pd.merge(fp_df, biomass_df, on=['week', 'year', 'month'], suffixes=('_df1', '_df2'))
 
-    # Merge df1 and df2 on the common columns ['week', 'year', 'month']
-    # merged_df = pd.merge(fp_df, biomass_df, on=['week', 'year', 'month'], suffixes=('_df1', '_df2'))
+        # Calculate the absolute difference between 'depth_df1' and 'Depth_df2'
+        merged_df['depth_diff'] = np.abs(merged_df['depth'] - merged_df['Depth'])
 
-    # # Calculate the absolute difference between 'depth_df1' and 'Depth_df2'
-    # merged_df['depth_diff'] = np.abs(merged_df['depth'] - merged_df['Depth'])
+        # Find the index of the minimum depth difference for each group
+        idx = merged_df.groupby(['week', 'year', 'month', 'group_num', 'Depth'])['depth_diff'].idxmin()
 
-    # # Find the index of the minimum depth difference for each group
-    # idx = merged_df.groupby(['week', 'year', 'month', 'group_num', 'Depth'])['depth_diff'].idxmin()
-
-    # # Select the rows from merged_df using the calculated index
-    # result_df = merged_df.loc[idx].drop(['depth', 'depth_diff'], axis=1)
+        # Select the rows from merged_df using the calculated index
+        result_df = merged_df.loc[idx].drop(['depth', 'depth_diff'], axis=1)
 
     return result_df.reset_index(drop=True)
