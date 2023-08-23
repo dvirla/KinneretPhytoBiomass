@@ -94,7 +94,7 @@ def train_iterative(model_name: str, df: pd.DataFrame, group_order: List[int], g
         
     return regression_models, preds_real_y
 
-def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid: Dict = {}) -> Dict:
+def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid: Dict = {}, scoring_method='neg_mean_squared_error') -> Dict:
     best_params_per_group = {}
 
     for group_num in df['group_num'].unique():
@@ -107,9 +107,9 @@ def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid:
 
         # Set up the parameter grid for the grid search
         grid_search = GridSearchCV(
-            estimator=Pipeline([('scaler', MinMaxScaler()), ('model', get_model(model_name))]),
+            estimator=Pipeline([('scaler', StandardScaler()), ('model', get_model(model_name))]),
             param_grid=param_grid,
-            scoring='neg_mean_squared_error',  # Negative MSE as scoring metric
+            scoring=scoring_method,  # Negative MSE as scoring metric
             cv=5,
             verbose=10,
             n_jobs=-1
