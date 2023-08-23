@@ -84,8 +84,7 @@ def train_iterative(model_name: str, df: pd.DataFrame, group_order: List[int], g
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
         
         model = get_model(model_name, **group_kwargs.get(group_num, {}))
-        model = Pipeline([('scaler', MinMaxScaler()), ('model', model)])
-        # model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
+        model = Pipeline([('scaler', StandardScaler()), ('model', model)])
         model.fit(X_train, y_train)
         regression_models[group_num] = model
         
