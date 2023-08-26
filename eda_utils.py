@@ -95,9 +95,6 @@ def plot_tsne(orig_df: pd.DataFrame) -> None:
         plt.legend(title='Group Number', loc='upper right', bbox_to_anchor=(1.3, 1))
         plt.show()
 
-# Min-Max scaling function
-def min_max_scaling(df: Union[pd.DataFrame, pd.Series]) -> Union[pd.DataFrame, pd.Series]:
-    return (df - df.min()) / (df.max() - df.min())
 
 def plot_fluorprobe_prediction(df: pd.DataFrame, fluor_groups_map: Dict) -> None:
     # Generate unique colors for each unique value of 'Depth'
@@ -114,17 +111,14 @@ def plot_fluorprobe_prediction(df: pd.DataFrame, fluor_groups_map: Dict) -> None
         group_y_test = df[df['group_num'] == group_num]['sum_biomass_ug_ml']
         group_y_fluor_pred = df[df['group_num'] == group_num][fluor_groups_map[group_num]]
         group_depth = df[df['group_num'] == group_num]['Depth']
-        
-        # Scale 'group_y_test' and 'group_y_fluor_pred' to the same scale
-        group_y_test_scaled = min_max_scaling(group_y_test)
-        group_y_fluor_pred_scaled = min_max_scaling(group_y_fluor_pred)
+
 
         # Get the index of the corresponding unique depth color for each data point
         depth_color_idx = [np.where(unique_depths == d)[0][0] for d in group_depth]
 
         # Create a scatter plot with unique colors for each unique value of 'Depth'
-        axes[row, col].scatter(group_y_test_scaled, group_y_fluor_pred_scaled, c=depth_colors[depth_color_idx], alpha=0.5)
-        axes[row, col].plot([group_y_test_scaled.min(), group_y_test_scaled.max()], [group_y_test_scaled.min(), group_y_test_scaled.max()], 'r--', lw=2)  # Add a diagonal line for reference
+        axes[row, col].scatter(group_y_test, group_y_fluor_pred, c=depth_colors[depth_color_idx], alpha=0.5)
+        axes[row, col].plot([group_y_test.min(), group_y_test.max()], [group_y_test.min(), group_y_test.max()], 'r--', lw=2)  # Add a diagonal line for reference
         axes[row, col].set_xlabel('Actual Test Values')
         axes[row, col].set_ylabel('Fluor Predicted Values')
         axes[row, col].set_title(f'Group {group_num} - Actual vs. Fluor Predicted')
