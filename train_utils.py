@@ -299,10 +299,10 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
         
         for model_name in all_predictions.keys():
             predictions = all_predictions[model_name][group_num]
-            y_test_scaled = min_max_scaling(y_true)
-            predictions = min_max_scaling(predictions)
-            rmse = mean_squared_error(y_test_scaled, predictions, squared=False)
-            r_squared = r2_score(y_test_scaled, predictions)
+            # y_test_scaled = min_max_scaling(y_true)
+            # predictions = min_max_scaling(predictions)
+            rmse = mean_squared_error(y_true, predictions, squared=False)
+            r_squared = r2_score(y_true, predictions)
             results.append((group_num, model_name, rmse, r_squared))
         
         if group_num in fluor_groups_map.keys():
