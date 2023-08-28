@@ -3,7 +3,7 @@ import seaborn as sns
 import pandas as pd
 from sklearn.manifold import TSNE
 from itertools import product
-from typing import Union, Dict
+from typing import List, Dict
 import numpy as np
 
 
@@ -14,6 +14,25 @@ def boxplot(df: pd.DataFrame) -> None:
     plt.title('Boxplot of sum_biomass_ug_ml by group_num')
     plt.xlabel('Group Number')
     plt.ylabel('Sum Biomass (ug/ml)')
+    plt.show()
+
+def boxplot_by_depth(df: pd.DataFrame, signals: List=None, depth_col: str='depth_discrete') -> None:
+    # List of signals you want to plot
+    if not signals:
+        signals = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample', 'yellow_sub']
+
+    # Create subplots
+    fig, axes = plt.subplots(nrows=len(signals), ncols=1, figsize=(10, 20), sharex=True)
+
+    # Loop through each signal and create a boxplot
+    for idx, signal in enumerate(signals):
+        ax = axes[idx]
+        sns.boxplot(x=depth_col, y=signal, data=df, ax=ax)
+        ax.set_ylabel(signal)
+        ax.set_xlabel('Depth Discrete')
+        ax.set_title(f'Boxplot of {signal} by Depth Discrete')
+
+    plt.tight_layout()
     plt.show()
 
 def remove_outliers_IQR(df: pd.DataFrame, q1: float=0.1, q3: float=0.9) -> pd.DataFrame:
