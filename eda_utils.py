@@ -7,7 +7,7 @@ from typing import List, Dict
 import numpy as np
 
 
-def boxplot(df: pd.DataFrame) -> None:
+def boxplot_biomass_by_group(df: pd.DataFrame) -> None:
     # Create the boxplot
     plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
     sns.boxplot(data=df, x='group_num', y='sum_biomass_ug_ml')
