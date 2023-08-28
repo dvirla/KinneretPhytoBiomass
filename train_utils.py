@@ -282,7 +282,7 @@ def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map
 
 
 def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd.DataFrame, fluor_groups_map: Dict, biomass_fn=None,
-                       new_col_prefix = '') -> pd.DataFrame:
+                       predictions_fn=None, new_col_prefix = '') -> pd.DataFrame:
     # Initialize an empty dictionary to store the predictions for each model and group
     all_predictions = {
         'xgb': {},
@@ -298,6 +298,8 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
         # Get predictions for each model and store them in the dictionary
         for model_name in all_predictions.keys():
             predictions = regression_models[model_name][group_num].predict(group_data.drop(columns=['sum_biomass_ug_ml']))
+            if predictions_fn:
+                predictions = predictions_fn(predictions)
             all_predictions[model_name][group_num] = predictions
 
     # Create a table comparing RMSE and R-squared for all models in all groups over the test set
