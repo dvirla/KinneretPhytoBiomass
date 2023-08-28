@@ -33,14 +33,16 @@ def get_model(model_name: str, **kwargs):
         return BayesianRidge()
     return xgb.XGBRegressor(**kwargs)
 
-def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.2, biomass_factor=10, do_noise=False) -> Tuple[Dict, Dict]:
+def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.2, biomass_fn=None, do_noise=False) -> Tuple[Dict, Dict]:
     regression_models = {}
     preds_real_y = {}
 
     for group_num in df['group_num'].unique():
         group_df = df[df['group_num'] == group_num]
         X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
-        y = group_df['sum_biomass_ug_ml'] * biomass_factor
+        y = group_df['sum_biomass_ug_ml']
+        if biomass_fn is not None:
+            y = biomass_fn(y)
         if do_noise:
             # Add some noise to y
             noise_factor = 0.08
@@ -62,14 +64,16 @@ def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.
         
     return regression_models, preds_real_y
 
-def train_iterative(model_name: str, df: pd.DataFrame, group_order: List[int], group_kwargs: Dict={}, test_size=0.2, biomass_factor=10) -> Tuple[Dict, Dict]:
+def train_iterative(model_name: str, df: pd.DataFrame, group_order: List[int], group_kwargs: Dict={}, test_size=0.2, biomass_fn=None) -> Tuple[Dict, Dict]:
     regression_models = {}
     preds_real_y = {}
 
     for group_num in group_order:  # Use the provided order for group iteration
         group_df = df[df['group_num'] == group_num]
         X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
-        y = group_df['sum_biomass_ug_ml'] * biomass_factor
+        y = group_df['sum_biomass_ug_ml']
+        if biomass_fn is not None:
+            y = biomass_fn(y)
         
         # Add previous predictions as features
         for prev_group_num in regression_models.keys():
@@ -122,7 +126,7 @@ def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid:
     return best_params_per_group
 
 
-def eval_test_iterative(regression_models: Dict, test_df: pd.DataFrame, group_order: List[int], biomass_factor=10) -> None:
+def eval_test_iterative(regression_models: Dict, test_df: pd.DataFrame, group_order: List[int], biomass_fn=None) -> None:
     preds_real_y = {}
     
     for i, group_num in enumerate(group_order):
@@ -137,19 +141,23 @@ def eval_test_iterative(regression_models: Dict, test_df: pd.DataFrame, group_or
             X[f'preds_group_{prev_group_num}'] = prev_preds
         
         y_pred = model.predict(X)
-        y_test = group_df['sum_biomass_ug_ml'] * biomass_factor
+        y_test = group_df['sum_biomass_ug_ml']
+        if biomass_fn is not None:
+            y_test = biomass_fn(y_test)
 
         preds_real_y[group_num] = {'real': y_test, 'preds': y_pred}
     
     eval_preds(preds_real_y)
     
-def eval_test(regression_models: Dict, test_df: pd.DataFrame, biomass_factor=10) -> None:
+def eval_test(regression_models: Dict, test_df: pd.DataFrame, biomass_fn=None) -> None:
     preds_real_y = {}
     for group_num in regression_models.keys():
         group_df = test_df[test_df['group_num'] == group_num]
         model = regression_models[group_num]
         y_pred = model.predict(group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1))
-        y_test = group_df['sum_biomass_ug_ml'] * biomass_factor
+        y_test = group_df['sum_biomass_ug_ml']
+        if biomass_fn is not None:
+            y_test = biomass_fn(y_test)
 
         preds_real_y[group_num] = {'real': y_test, 'preds': y_pred}
     
@@ -179,14 +187,16 @@ def eval_preds(preds_real_y: Dict) -> None:
         print(f"R-squared: {r2}\n")
     print(f"Total MSE: {total_mse/len(preds_real_y.keys())}, Total R-squared: {total_r2/len(preds_real_y.keys())}")
 
-def residual_analysis(df: pd.DataFrame, regression_models: Dict, biomass_factor=10) -> None:
+def residual_analysis(df: pd.DataFrame, regression_models: Dict, biomass_fn=None) -> None:
     fig, axes = plt.subplots(nrows=7, ncols=2, figsize=(15,20))
     for i, group_num in enumerate(regression_models.keys()):
         ax_row = i % 7
         group_df = df[df['group_num'] == group_num]
         model = regression_models[group_num]
         group_y_pred = model.predict(group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1))
-        group_y_test = group_df['sum_biomass_ug_ml'] * biomass_factor
+        group_y_test = group_df['sum_biomass_ug_ml']
+        if biomass_fn:
+            group_y_test = biomass_fn(group_y_test)
 
         residuals = group_y_test - group_y_pred
 
@@ -238,13 +248,15 @@ def plot_shap_values(df: pd.DataFrame, models_dict: Dict, df_test: pd.DataFrame)
         
     return shap_values_list
 
-def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map: Dict, fluor_test_df: pd.DataFrame, biomass_factor=10) -> None:
+def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map: Dict, fluor_test_df: pd.DataFrame, biomass_fn=None) -> None:
     # Visualize predictions along with test points
     fig, axes = plt.subplots(len(fluor_groups_map), 2, figsize=(13, 20))
 
     for i, group_num in enumerate(fluor_groups_map.keys()):
         group_X_test = df[df['group_num'] == group_num]
-        group_y_test = df[df['group_num'] == group_num]['sum_biomass_ug_ml'] * biomass_factor
+        group_y_test = df[df['group_num'] == group_num]['sum_biomass_ug_ml']
+        if biomass_fn:
+            group_y_test = biomass_fn(group_y_test)
         group_y_fluor_pred = fluor_test_df[fluor_test_df['group_num'] == group_num][fluor_groups_map[group_num]]
         group_y_fluor_test = fluor_test_df[fluor_test_df['group_num'] == group_num]['sum_biomass_ug_ml']
 
@@ -269,7 +281,7 @@ def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map
     plt.show()
 
 
-def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd.DataFrame, fluor_groups_map: Dict, biomass_factor=100,
+def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd.DataFrame, fluor_groups_map: Dict, biomass_fn=None,
                        new_col_prefix = '') -> pd.DataFrame:
     # Initialize an empty dictionary to store the predictions for each model and group
     all_predictions = {
@@ -293,8 +305,10 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
 
     for group_num in df_test['group_num'].unique():
         group_data = df_test[df_test['group_num'] == group_num].drop(['group_num'], axis=1)
-        y_true = group_data[f'{new_col_prefix}sum_biomass_ug_ml'] * biomass_factor
-        
+        y_true = group_data[f'{new_col_prefix}sum_biomass_ug_ml']
+        if biomass_fn is not None:
+            y_true = biomass_fn(y_true)
+
         for model_name in all_predictions.keys():
             predictions = all_predictions[model_name][group_num]
             rmse = mean_squared_error(y_true, predictions, squared=False)
@@ -322,7 +336,9 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
     # Iterate through each group number
     for i, group_num in enumerate(sorted(df_test['group_num'].unique())):
         group_data = df_test[df_test['group_num'] == group_num].drop(['group_num'], axis=1)
-        y_true = group_data[f'{new_col_prefix}sum_biomass_ug_ml'] * biomass_factor
+        y_true = group_data[f'{new_col_prefix}sum_biomass_ug_ml']
+        if biomass_fn is not None:
+            biomass_fn(y_true)
 
         # Iterate through each model type
         for j, model_name in enumerate(all_predictions.keys()):
