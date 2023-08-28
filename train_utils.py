@@ -297,7 +297,7 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
         
         # Get predictions for each model and store them in the dictionary
         for model_name in all_predictions.keys():
-            predictions = regression_models[model_name][group_num].predict(group_data.drop(columns=['sum_biomass_ug_ml', 'proportion_sum_biomass_ug_ml']))
+            predictions = regression_models[model_name][group_num].predict(group_data.drop(columns=['sum_biomass_ug_ml']))
             all_predictions[model_name][group_num] = predictions
 
     # Create a table comparing RMSE and R-squared for all models in all groups over the test set
@@ -338,7 +338,7 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
         group_data = df_test[df_test['group_num'] == group_num].drop(['group_num'], axis=1)
         y_true = group_data[f'{new_col_prefix}sum_biomass_ug_ml']
         if biomass_fn is not None:
-            biomass_fn(y_true)
+            y_true = biomass_fn(y_true)
 
         # Iterate through each model type
         for j, model_name in enumerate(all_predictions.keys()):
