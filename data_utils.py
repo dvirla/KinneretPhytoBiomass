@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from typing import List, Dict
 
 def get_biomass_data(phyt_cod_path: str, phyto_path: str) -> pd.DataFrame:
     phyt_cod_df = pd.read_csv(phyt_cod_path)
@@ -171,3 +172,25 @@ def biomass_estimation(df: pd.DataFrame) -> None:
 
     df.drop(['sum_biomass_ug_ml', 'depth_diffs'], axis=1, inplace=True)
     df.rename(columns={'estimated_sum_biomass_ug_ml': 'sum_biomass_ug_ml'}, inplace=True)
+
+def filter_signals_by_boundaries(df: pd.DataFrame, signals: List, boundaries: Dict) -> None:
+    # Dictionary to store records to be removed for each signal
+    records_to_remove = {signal: [] for signal in signals}
+
+    # Loop through each signal and create a boxplot
+    for _, signal in enumerate(signals):
+        
+        lower_bound = boundaries[signal]['lower_bound']
+        upper_bound = boundaries[signal]['upper_bound']
+        
+        # Identify records to be removed
+        outliers = df[(df[signal] < lower_bound) | (df[signal] > upper_bound)]
+        
+        # Accumulate records to be removed
+        records_to_remove[signal].extend(outliers.index.tolist())
+    
+    # Flatten the list of indices to remove
+    indices_to_remove = set(idx for lst in records_to_remove.values() for idx in lst)
+
+    # Remove accumulated records from 'fp_df'
+    df.drop(index=indices_to_remove, inplace=True)
