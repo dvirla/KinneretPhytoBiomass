@@ -13,7 +13,6 @@ from typing import Dict, Tuple, List
 import statsmodels.api as sm
 from scipy.stats import norm
 import shap
-from eda_utils import min_max_scaling
 import numpy as np
 
 
@@ -34,7 +33,7 @@ def get_model(model_name: str, **kwargs):
         return BayesianRidge()
     return xgb.XGBRegressor(**kwargs)
 
-def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.2, biomass_factor=10) -> Tuple[Dict, Dict]:
+def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.2, biomass_factor=10, do_noise=False) -> Tuple[Dict, Dict]:
     regression_models = {}
     preds_real_y = {}
 
@@ -42,11 +41,12 @@ def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.
         group_df = df[df['group_num'] == group_num]
         X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
         y = group_df['sum_biomass_ug_ml'] * biomass_factor
-        # Add some noise to y
-        noise_factor = 0.08
-        noise_scale = noise_factor * (np.max(y) - np.min(y))
-        noise = np.random.normal(scale=noise_scale, size=y.shape)
-        y = y + noise
+        if do_noise:
+            # Add some noise to y
+            noise_factor = 0.08
+            noise_scale = noise_factor * (np.max(y) - np.min(y))
+            noise = np.random.normal(scale=noise_scale, size=y.shape)
+            y = y + noise
         if test_size == 0:
             X_train, y_train = X, y
         else:
@@ -83,8 +83,7 @@ def train_iterative(model_name: str, df: pd.DataFrame, group_order: List[int], g
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
         
         model = get_model(model_name, **group_kwargs.get(group_num, {}))
-        model = Pipeline([('scaler', MinMaxScaler()), ('model', model)])
-        # model = TransformedTargetRegressor(regressor=model, transformer=StandardScaler())
+        model = Pipeline([('scaler', StandardScaler()), ('model', model)])
         model.fit(X_train, y_train)
         regression_models[group_num] = model
         
@@ -94,7 +93,7 @@ def train_iterative(model_name: str, df: pd.DataFrame, group_order: List[int], g
         
     return regression_models, preds_real_y
 
-def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid: Dict = {}) -> Dict:
+def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid: Dict = {}, scoring_method='neg_mean_squared_error') -> Dict:
     best_params_per_group = {}
 
     for group_num in df['group_num'].unique():
@@ -107,9 +106,9 @@ def grid_search_cv(model_name: str, df: pd.DataFrame, test_size=0.2, param_grid:
 
         # Set up the parameter grid for the grid search
         grid_search = GridSearchCV(
-            estimator=Pipeline([('scaler', MinMaxScaler()), ('model', get_model(model_name))]),
+            estimator=Pipeline([('scaler', StandardScaler()), ('model', get_model(model_name))]),
             param_grid=param_grid,
-            scoring='neg_mean_squared_error',  # Negative MSE as scoring metric
+            scoring=scoring_method,  # Negative MSE as scoring metric
             cv=5,
             verbose=10,
             n_jobs=-1
@@ -247,10 +246,8 @@ def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map
         group_X_test = df[df['group_num'] == group_num]
         group_y_test = df[df['group_num'] == group_num]['sum_biomass_ug_ml'] * biomass_factor
         group_y_fluor_pred = fluor_test_df[fluor_test_df['group_num'] == group_num][fluor_groups_map[group_num]]
-        
-        # Scale 'group_y_test' and 'group_y_fluor_pred' to the same scale
-        group_y_test_scaled = min_max_scaling(group_y_test)
-        group_y_fluor_pred_scaled = min_max_scaling(group_y_fluor_pred)
+        group_y_fluor_test = fluor_test_df[fluor_test_df['group_num'] == group_num]['sum_biomass_ug_ml']
+
     
         model = regression_models[group_num]
         group_y_pred = model.predict(group_X_test.drop(['sum_biomass_ug_ml', 'group_num'], axis=1))
@@ -263,8 +260,8 @@ def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map
         axes[i, 0].set_title(f'Group {group_num} - Actual vs. Predicted')
 
         # Create a scatter plot to compare fluorprobe's predicted values and actual test values
-        axes[i, 1].scatter(group_y_test_scaled, group_y_fluor_pred_scaled, color='b', alpha=0.5)
-        axes[i, 1].plot([group_y_test_scaled.min(), group_y_test_scaled.max()], [group_y_test_scaled.min(), group_y_test_scaled.max()], 'r--', lw=2)  # Add a diagonal line for reference
+        axes[i, 1].scatter(group_y_fluor_test, group_y_fluor_pred, color='b', alpha=0.5)
+        axes[i, 1].plot([group_y_fluor_test.min(), group_y_fluor_test.max()], [group_y_fluor_test.min(), group_y_fluor_test.max()], 'r--', lw=2)  # Add a diagonal line for reference
         axes[i, 1].set_xlabel('Actual Test Values')
         axes[i, 1].set_ylabel('Fluor Predicted Values')
         axes[i, 1].set_title(f'Group {group_num} - Actual vs. Fluor Predicted')
@@ -272,7 +269,8 @@ def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map
     plt.show()
 
 
-def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd.DataFrame, fluor_groups_map: Dict, biomass_factor=100) -> pd.DataFrame:
+def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd.DataFrame, fluor_groups_map: Dict, biomass_factor=100,
+                       new_col_prefix = '') -> pd.DataFrame:
     # Initialize an empty dictionary to store the predictions for each model and group
     all_predictions = {
         'xgb': {},
@@ -287,7 +285,7 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
         
         # Get predictions for each model and store them in the dictionary
         for model_name in all_predictions.keys():
-            predictions = regression_models[model_name][group_num].predict(group_data.drop(columns=['sum_biomass_ug_ml']))
+            predictions = regression_models[model_name][group_num].predict(group_data.drop(columns=['sum_biomass_ug_ml', 'proportion_sum_biomass_ug_ml']))
             all_predictions[model_name][group_num] = predictions
 
     # Create a table comparing RMSE and R-squared for all models in all groups over the test set
@@ -295,22 +293,19 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
 
     for group_num in df_test['group_num'].unique():
         group_data = df_test[df_test['group_num'] == group_num].drop(['group_num'], axis=1)
-        y_true = group_data['sum_biomass_ug_ml'] * biomass_factor
+        y_true = group_data[f'{new_col_prefix}sum_biomass_ug_ml'] * biomass_factor
         
         for model_name in all_predictions.keys():
             predictions = all_predictions[model_name][group_num]
-            y_test_scaled = min_max_scaling(y_true)
-            predictions = min_max_scaling(predictions)
-            rmse = mean_squared_error(y_test_scaled, predictions, squared=False)
-            r_squared = r2_score(y_test_scaled, predictions)
+            rmse = mean_squared_error(y_true, predictions, squared=False)
+            r_squared = r2_score(y_true, predictions)
             results.append((group_num, model_name, rmse, r_squared))
         
         if group_num in fluor_groups_map.keys():
             y_fp_pred = fp_df[fp_df['group_num'] == group_num][fluor_groups_map[group_num]]
-            y_test_scaled = min_max_scaling(y_true)
-            y_fluor_pred_scaled = min_max_scaling(y_fp_pred)
-            rmse = mean_squared_error(y_test_scaled, y_fluor_pred_scaled, squared=False)
-            r_squared = r2_score(y_test_scaled, y_fluor_pred_scaled)
+            y_fp_true = fp_df[fp_df['group_num'] == group_num]['sum_biomass_ug_ml']
+            rmse = mean_squared_error(y_fp_true, y_fp_pred, squared=False)
+            r_squared = r2_score(y_fp_true, y_fp_pred)
             results.append((group_num, 'FP', rmse, r_squared))
 
     comparison_df = pd.DataFrame(results, columns=['Group', 'Model', 'RMSE', 'R-squared'])
@@ -327,8 +322,8 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
     # Iterate through each group number
     for i, group_num in enumerate(sorted(df_test['group_num'].unique())):
         group_data = df_test[df_test['group_num'] == group_num].drop(['group_num'], axis=1)
-        y_true = group_data['sum_biomass_ug_ml'] * biomass_factor
-        
+        y_true = group_data[f'{new_col_prefix}sum_biomass_ug_ml'] * biomass_factor
+
         # Iterate through each model type
         for j, model_name in enumerate(all_predictions.keys()):
             predictions = all_predictions[model_name][group_num]
@@ -342,12 +337,10 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
         
         if group_num in fluor_groups_map.keys():
             y_fp_pred = fp_df[fp_df['group_num'] == group_num][fluor_groups_map[group_num]]
-            # Scale 'group_y_test' and 'group_y_fluor_pred' to the same scale
-            y_test_scaled = min_max_scaling(y_true)
-            y_fluor_pred_scaled = min_max_scaling(y_fp_pred)
+            y_fp_true = fp_df[fp_df['group_num'] == group_num]['sum_biomass_ug_ml']
             # Create a scatter plot to compare fluorprobe's predicted values and actual test values
-            axs[i, num_models].scatter(y_test_scaled, y_fluor_pred_scaled)
-            axs[i, num_models].plot([y_test_scaled.min(), y_test_scaled.max()], [y_test_scaled.min(), y_test_scaled.max()], 'r--', lw=2)  # Add a diagonal line for reference
+            axs[i, num_models].scatter(y_fp_true, y_fp_pred)
+            axs[i, num_models].plot([y_fp_true.min(), y_fp_true.max()], [y_fp_true.min(), y_fp_true.max()], 'r--', lw=2)  # Add a diagonal line for reference
             axs[i, num_models].set_xlabel('Actual Test Values')
             axs[i, num_models].set_ylabel('Fluor Predicted Values')
             axs[i, num_models].set_title(f'Group {group_num} - Actual vs. Fluor Predicted')
