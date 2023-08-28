@@ -124,3 +124,50 @@ def proportionalize(df: pd.DataFrame, row_wise=True, new_col_prefix='') -> None:
         col_proportional_cols = ['week', 'month', 'year', 'Depth']
         col_sum = df.groupby(col_proportional_cols)['sum_biomass_ug_ml'].transform('sum')
         df[f'{new_col_prefix}sum_biomass_ug_ml'] = df['sum_biomass_ug_ml'].div(col_sum) * 100
+
+def biomass_estimation(df: pd.DataFrame) -> None:
+    # Calculate estimated sum_biomass_ug_ml
+    estimated_biomass = []
+    current_step = 0  # Initialize the step for the current week-year-month frame
+    depth_diffs = []
+
+    prev_depths = {
+        3: 0,
+        5: 3,
+        10: 5,
+        15: 10,
+        20: 15,
+        21: 20,
+        25: 21,
+        30: 25
+    }
+
+    for _, row in df.iterrows():
+        # Calculate step for the current week-year-month frame
+        next_df = df[(df.week == row.week) & 
+                            (df.year == row.year) & 
+                            (df.month == row.month) & 
+                            (df.group_num == row.group_num) &
+                            (df.Depth == prev_depths[row.Depth])]
+        if next_df.shape[0] > 0:
+            step_numerator = row['sum_biomass_ug_ml'] - next_df.iloc[0]['sum_biomass_ug_ml']
+            step_denominator = row['Depth'] - next_df.iloc[0]['Depth']
+        else:
+            step_numerator = row['sum_biomass_ug_ml']
+            step_denominator = row['Depth']
+
+        current_step = step_numerator / step_denominator
+            
+        depth_diff = row['Depth'] - row['depth']
+        depth_diffs.append(depth_diff)
+        
+        estimated_biomass_value = row['sum_biomass_ug_ml']
+        estimated_biomass_value += current_step * depth_diff
+        
+        estimated_biomass.append(estimated_biomass_value)
+
+    df['estimated_sum_biomass_ug_ml'] = estimated_biomass
+    df['depth_diffs'] = depth_diffs
+
+    df.drop(['sum_biomass_ug_ml', 'depth_diffs'], axis=1, inplace=True)
+    df.rename(columns={'estimated_sum_biomass_ug_ml': 'sum_biomass_ug_ml'}, inplace=True)
