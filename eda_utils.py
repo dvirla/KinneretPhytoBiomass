@@ -16,7 +16,7 @@ def boxplot(df: pd.DataFrame) -> None:
     plt.ylabel('Sum Biomass (ug/ml)')
     plt.show()
 
-def boxplot_by_depth(df: pd.DataFrame, signals: List=None, depth_col: str='depth_discrete') -> None:
+def boxplot_by_depth(df: pd.DataFrame, signals: List=None, by_col: str='depth_discrete') -> None:
     # List of signals you want to plot
     if not signals:
         signals = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample', 'yellow_sub']
@@ -27,10 +27,10 @@ def boxplot_by_depth(df: pd.DataFrame, signals: List=None, depth_col: str='depth
     # Loop through each signal and create a boxplot
     for idx, signal in enumerate(signals):
         ax = axes[idx]
-        sns.boxplot(x=depth_col, y=signal, data=df, ax=ax)
+        sns.boxplot(x=by_col, y=signal, data=df, ax=ax)
         ax.set_ylabel(signal)
-        ax.set_xlabel('Depth Discrete')
-        ax.set_title(f'Boxplot of {signal} by Depth Discrete')
+        ax.set_xlabel(f'{by_col}')
+        ax.set_title(f'Boxplot of {signal} by {by_col}')
 
     plt.tight_layout()
     plt.show()
