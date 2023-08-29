@@ -16,6 +16,19 @@ def boxplot_biomass_by_group(df: pd.DataFrame) -> None:
     plt.ylabel('Sum Biomass (ug/ml)')
     plt.show()
 
+def violin_biomass_by_group(df: pd.DataFrame) -> None:
+    groups = df['group_num'].unique()
+    fig, axes = plt.subplots(nrows=len(groups), ncols=1, figsize=(10, 20), sharex=True)
+    for i, group in enumerate(groups):
+        ax = axes[i]
+        group_df = df[df['group_num'] == group]
+        sns.violinplot(data=group_df, y='sum_biomass_ug_ml', ax=ax)
+        ax.set_title(f"Violin Plot of sum_biomass_ug_ml Group {group}")
+        ax.set_ylabel("Sum Biomass (ug/ml)")
+    
+    plt.tight_layout()
+    plt.show()
+
 def boxplot_by_depth(df: pd.DataFrame, signals: List=None, by_col: str='depth_discrete') -> None:
     # List of signals you want to plot
     if not signals:
