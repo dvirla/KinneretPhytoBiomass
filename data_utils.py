@@ -194,3 +194,13 @@ def filter_signals_by_boundaries(df: pd.DataFrame, signals: List, boundaries: Di
 
     # Remove accumulated records from 'fp_df'
     df.drop(index=indices_to_remove, inplace=True)
+
+def filter_biomass_by_group_boundaries(df: pd.DataFrame, boundaries: List) -> None:
+    groups = df['group_num'].unique()
+    indices_to_remove = []
+    for group in groups:
+        lb, ub = boundaries[group]
+        indices_to_remove.append(df[(df['sum_biomass_ug_ml'] < lb) | (df['sum_biomass_ug_ml'] > ub)].index)
+    
+    indices_to_remove = set(indices_to_remove)
+    df.drop(indices_to_remove, inplace=True)
