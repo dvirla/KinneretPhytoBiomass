@@ -149,12 +149,14 @@ def eval_test_iterative(regression_models: Dict, test_df: pd.DataFrame, group_or
     
     eval_preds(preds_real_y)
     
-def eval_test(regression_models: Dict, test_df: pd.DataFrame, biomass_fn=None) -> None:
+def eval_test(regression_models: Dict, test_df: pd.DataFrame, biomass_fn=None, prediction_fn=None) -> None:
     preds_real_y = {}
     for group_num in regression_models.keys():
         group_df = test_df[test_df['group_num'] == group_num]
         model = regression_models[group_num]
         y_pred = model.predict(group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1))
+        if prediction_fn:
+            y_pred = prediction_fn(y_pred)
         y_test = group_df['sum_biomass_ug_ml']
         if biomass_fn is not None:
             y_test = biomass_fn(y_test)
