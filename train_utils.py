@@ -5,7 +5,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression, ElasticNet, Lasso, Ridge, BayesianRidge
 from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error
 import matplotlib.pyplot as plt
 import pandas as pd
 from typing import Dict, Tuple, List
@@ -315,16 +315,18 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
             predictions = all_predictions[model_name][group_num]
             rmse = mean_squared_error(y_true, predictions, squared=False)
             r_squared = r2_score(y_true, predictions)
-            results.append((group_num, model_name, rmse, r_squared))
+            mape = mean_absolute_percentage_error(y_true, predictions)
+            results.append((group_num, model_name, rmse, r_squared, mape))
         
         if group_num in fluor_groups_map.keys():
             y_fp_pred = fp_df[fp_df['group_num'] == group_num][fluor_groups_map[group_num]]
             y_fp_true = fp_df[fp_df['group_num'] == group_num]['sum_biomass_ug_ml']
             rmse = mean_squared_error(y_fp_true, y_fp_pred, squared=False)
             r_squared = r2_score(y_fp_true, y_fp_pred)
-            results.append((group_num, 'FP', rmse, r_squared))
+            mape = mean_absolute_percentage_error(y_fp_true, y_fp_pred)
+            results.append((group_num, 'FP', rmse, r_squared, mape))
 
-    comparison_df = pd.DataFrame(results, columns=['Group', 'Model', 'RMSE', 'R-squared'])
+    comparison_df = pd.DataFrame(results, columns=['Group', 'Model', 'RMSE', 'R-squared', 'MAPE'])
 
     # Create a table-like structure for the plots
 
