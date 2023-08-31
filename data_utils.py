@@ -204,3 +204,51 @@ def filter_biomass_by_group_boundaries(df: pd.DataFrame, boundaries: List) -> No
     
     indices_to_remove = set(indices_to_remove)
     df.drop(indices_to_remove, inplace=True)
+
+def oversample_within_ranges(dataframe: pd.DataFrame, ranges_dict: Dict) -> pd.DataFrame:
+    oversampled_dfs = []
+
+    for group, (lower_bound, upper_bound, frac, noise_loc, noise_scale) in ranges_dict.items():
+        within_range = dataframe[
+            (dataframe['group_num'] == group) &
+            (dataframe['sum_biomass_ug_ml'] >= lower_bound) &
+            (dataframe['sum_biomass_ug_ml'] <= upper_bound)
+        ]
+
+        within_outside_range = dataframe[
+            (dataframe['group_num'] == group) &
+            ~((dataframe['sum_biomass_ug_ml'] >= lower_bound) &
+              (dataframe['sum_biomass_ug_ml'] <= upper_bound))
+        ]
+
+        oversampled_within_outside_range = within_outside_range.sample(frac=frac, replace=True)
+        small_noise = np.abs(np.random.normal(loc=noise_loc, scale=noise_scale, size=oversampled_within_outside_range.shape[0]))
+        oversampled_within_outside_range['sum_biomass_ug_ml'] += small_noise
+
+        oversampled_df = pd.concat([oversampled_within_outside_range, within_range])
+        oversampled_dfs.append(oversampled_df)
+
+    return pd.concat(oversampled_dfs)
+
+def undersample_within_ranges(dataframe: pd.DataFrame, ranges_dict: Dict) -> pd.DataFrame:
+    undersampled_dfs = []
+
+    for group, (lower_bound, upper_bound, frac) in ranges_dict.items():
+        within_range = dataframe[
+            (dataframe['group_num'] == group) &
+            (dataframe['sum_biomass_ug_ml'] >= lower_bound) &
+            (dataframe['sum_biomass_ug_ml'] <= upper_bound)
+        ]
+
+        within_outside_range = dataframe[
+            (dataframe['group_num'] == group) &
+            ~((dataframe['sum_biomass_ug_ml'] >= lower_bound) &
+              (dataframe['sum_biomass_ug_ml'] <= upper_bound))
+        ]
+
+        undersampled_within_range = within_range.sample(frac=frac, replace=False)
+
+        undersampled_df = pd.concat([undersampled_within_range, within_outside_range])
+        undersampled_dfs.append(undersampled_df)
+
+    return pd.concat(undersampled_dfs)
