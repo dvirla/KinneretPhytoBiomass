@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from typing import List, Dict
 
 def get_biomass_data(phyt_cod_path: str, phyto_path: str) -> pd.DataFrame:
     phyt_cod_df = pd.read_csv(phyt_cod_path)
@@ -124,3 +125,130 @@ def proportionalize(df: pd.DataFrame, row_wise=True, new_col_prefix='') -> None:
         col_proportional_cols = ['week', 'month', 'year', 'Depth']
         col_sum = df.groupby(col_proportional_cols)['sum_biomass_ug_ml'].transform('sum')
         df[f'{new_col_prefix}sum_biomass_ug_ml'] = df['sum_biomass_ug_ml'].div(col_sum) * 100
+
+def biomass_estimation(df: pd.DataFrame) -> None:
+    # Calculate estimated sum_biomass_ug_ml
+    estimated_biomass = []
+    current_step = 0  # Initialize the step for the current week-year-month frame
+    depth_diffs = []
+
+    prev_depths = {
+        3: 0,
+        5: 3,
+        10: 5,
+        15: 10,
+        20: 15,
+        21: 20,
+        25: 21,
+        30: 25
+    }
+
+    for _, row in df.iterrows():
+        # Calculate step for the current week-year-month frame
+        next_df = df[(df.week == row.week) & 
+                            (df.year == row.year) & 
+                            (df.month == row.month) & 
+                            (df.group_num == row.group_num) &
+                            (df.Depth == prev_depths[row.Depth])]
+        if next_df.shape[0] > 0:
+            step_numerator = row['sum_biomass_ug_ml'] - next_df.iloc[0]['sum_biomass_ug_ml']
+            step_denominator = row['Depth'] - next_df.iloc[0]['Depth']
+        else:
+            step_numerator = row['sum_biomass_ug_ml']
+            step_denominator = row['Depth']
+
+        current_step = step_numerator / step_denominator
+            
+        depth_diff = row['Depth'] - row['depth']
+        depth_diffs.append(depth_diff)
+        
+        estimated_biomass_value = row['sum_biomass_ug_ml']
+        estimated_biomass_value += current_step * depth_diff
+        
+        estimated_biomass.append(estimated_biomass_value)
+
+    df['estimated_sum_biomass_ug_ml'] = estimated_biomass
+    df['depth_diffs'] = depth_diffs
+
+    df.drop(['sum_biomass_ug_ml', 'depth_diffs'], axis=1, inplace=True)
+    df.rename(columns={'estimated_sum_biomass_ug_ml': 'sum_biomass_ug_ml'}, inplace=True)
+
+def filter_signals_by_boundaries(df: pd.DataFrame, signals: List, boundaries: Dict) -> None:
+    # Dictionary to store records to be removed for each signal
+    records_to_remove = {signal: [] for signal in signals}
+
+    # Loop through each signal and create a boxplot
+    for _, signal in enumerate(signals):
+        
+        lower_bound = boundaries[signal]['lower_bound']
+        upper_bound = boundaries[signal]['upper_bound']
+        
+        # Identify records to be removed
+        outliers = df[(df[signal] < lower_bound) | (df[signal] > upper_bound)]
+        
+        # Accumulate records to be removed
+        records_to_remove[signal].extend(outliers.index.tolist())
+    
+    # Flatten the list of indices to remove
+    indices_to_remove = set(idx for lst in records_to_remove.values() for idx in lst)
+
+    # Remove accumulated records from 'fp_df'
+    df.drop(index=indices_to_remove, inplace=True)
+
+def filter_biomass_by_group_boundaries(df: pd.DataFrame, boundaries: List) -> None:
+    groups = df['group_num'].unique()
+    indices_to_remove = []
+    for group in groups:
+        lb, ub = boundaries[group]
+        indices_to_remove.extend(df[(df['sum_biomass_ug_ml'] < lb) | (df['sum_biomass_ug_ml'] > ub)].index.tolist())
+    
+    indices_to_remove = set(indices_to_remove)
+    df.drop(indices_to_remove, inplace=True)
+
+def oversample_within_ranges(dataframe: pd.DataFrame, ranges_dict: Dict) -> pd.DataFrame:
+    oversampled_dfs = []
+
+    for group, (lower_bound, upper_bound, frac, noise_loc, noise_scale) in ranges_dict.items():
+        within_range = dataframe[
+            (dataframe['group_num'] == group) &
+            (dataframe['sum_biomass_ug_ml'] >= lower_bound) &
+            (dataframe['sum_biomass_ug_ml'] <= upper_bound)
+        ]
+
+        within_outside_range = dataframe[
+            (dataframe['group_num'] == group) &
+            ~((dataframe['sum_biomass_ug_ml'] >= lower_bound) &
+              (dataframe['sum_biomass_ug_ml'] <= upper_bound))
+        ]
+
+        oversampled_within_outside_range = within_outside_range.sample(frac=frac, replace=True)
+        small_noise = np.abs(np.random.normal(loc=noise_loc, scale=noise_scale, size=oversampled_within_outside_range.shape[0]))
+        oversampled_within_outside_range['sum_biomass_ug_ml'] += small_noise
+
+        oversampled_df = pd.concat([oversampled_within_outside_range, within_range])
+        oversampled_dfs.append(oversampled_df)
+
+    return pd.concat(oversampled_dfs)
+
+def undersample_within_ranges(dataframe: pd.DataFrame, ranges_dict: Dict) -> pd.DataFrame:
+    undersampled_dfs = []
+
+    for group, (lower_bound, upper_bound, frac) in ranges_dict.items():
+        within_range = dataframe[
+            (dataframe['group_num'] == group) &
+            (dataframe['sum_biomass_ug_ml'] >= lower_bound) &
+            (dataframe['sum_biomass_ug_ml'] <= upper_bound)
+        ]
+
+        within_outside_range = dataframe[
+            (dataframe['group_num'] == group) &
+            ~((dataframe['sum_biomass_ug_ml'] >= lower_bound) &
+              (dataframe['sum_biomass_ug_ml'] <= upper_bound))
+        ]
+
+        undersampled_within_range = within_range.sample(frac=frac, replace=False)
+
+        undersampled_df = pd.concat([undersampled_within_range, within_outside_range])
+        undersampled_dfs.append(undersampled_df)
+
+    return pd.concat(undersampled_dfs)

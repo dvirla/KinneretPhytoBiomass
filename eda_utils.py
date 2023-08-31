@@ -3,17 +3,50 @@ import seaborn as sns
 import pandas as pd
 from sklearn.manifold import TSNE
 from itertools import product
-from typing import Union, Dict
+from typing import List, Dict
 import numpy as np
 
 
-def boxplot(df: pd.DataFrame) -> None:
+def boxplot_biomass_by_group(df: pd.DataFrame) -> None:
     # Create the boxplot
     plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
     sns.boxplot(data=df, x='group_num', y='sum_biomass_ug_ml')
     plt.title('Boxplot of sum_biomass_ug_ml by group_num')
     plt.xlabel('Group Number')
     plt.ylabel('Sum Biomass (ug/ml)')
+    plt.show()
+
+def violin_biomass_by_group(df: pd.DataFrame) -> None:
+    groups = df['group_num'].unique()
+    fig, axes = plt.subplots(nrows=len(groups), ncols=1, figsize=(10, 7 * len(groups)), sharex=True)
+    for i, group in enumerate(groups):
+        ax = axes[i]
+        group_df = df[df['group_num'] == group]
+        sns.violinplot(data=group_df, y='sum_biomass_ug_ml', ax=ax)
+        ax.set_title(f"Violin Plot of sum_biomass_ug_ml Group {group}")
+        ax.set_ylabel("Sum Biomass (ug/ml)")
+        ax.set_yticks(np.linspace(0, group_df['sum_biomass_ug_ml'].max(), 35))
+    
+    plt.tight_layout()
+    plt.show()
+
+def boxplot_by_depth(df: pd.DataFrame, signals: List=None, by_col: str='depth_discrete') -> None:
+    # List of signals you want to plot
+    if not signals:
+        signals = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample', 'yellow_sub']
+
+    # Create subplots
+    fig, axes = plt.subplots(nrows=len(signals), ncols=1, figsize=(10, 20), sharex=True)
+
+    # Loop through each signal and create a boxplot
+    for idx, signal in enumerate(signals):
+        ax = axes[idx]
+        sns.boxplot(x=by_col, y=signal, data=df, ax=ax)
+        ax.set_ylabel(signal)
+        ax.set_xlabel(f'{by_col}')
+        ax.set_title(f'Boxplot of {signal} by {by_col}')
+
+    plt.tight_layout()
     plt.show()
 
 def remove_outliers_IQR(df: pd.DataFrame, q1: float=0.1, q3: float=0.9) -> pd.DataFrame:
