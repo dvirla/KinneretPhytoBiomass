@@ -127,6 +127,15 @@ def proportionalize(df: pd.DataFrame, row_wise=True, new_col_prefix='', row_prop
         col_sum = df.groupby(col_proportional_cols)['sum_biomass_ug_ml'].transform('sum')
         df[f'{new_col_prefix}sum_biomass_ug_ml'] = df['sum_biomass_ug_ml'].div(col_sum) * 100
 
+def pivot_merged_df(df: pd.DataFrame) -> pd.DataFrame:
+    # Group by the specified columns and calculate the sum of 'sum_biomass_ug_ml'
+    transformed_df = df.groupby(['week', 'year', 'month', 'Depth', 'group_num'])['sum_biomass_ug_ml'].sum().reset_index()
+
+    # If you want to pivot the 'group_num' values as columns
+    pivot_df = transformed_df.pivot_table(index=['week', 'year', 'month', 'Depth'], columns='group_num', values='sum_biomass_ug_ml', fill_value=0).reset_index()
+
+    return pivot_df
+
 def biomass_estimation(df: pd.DataFrame) -> None:
     # Calculate estimated sum_biomass_ug_ml
     estimated_biomass = []
