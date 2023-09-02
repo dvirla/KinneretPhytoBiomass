@@ -14,6 +14,8 @@ import statsmodels.api as sm
 from scipy.stats import norm
 import shap
 import numpy as np
+from functools import partial
+from data_utils import pivot_merged_df, proportionalize
 
 
 def get_model(model_name: str, **kwargs):
@@ -372,11 +374,70 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
 
     return comparison_df
 
-def mean_proportion_error(y_true_proportions: np.array, y_pred_proportions: np.array) -> float:
+def mean_proportion_error(y_true_proportions: np.array, y_pred_proportions: np.array, all_groups=True) -> float:
     # y_true_proportions array of shape (N, n) where N is number of predictions - groups of [week, year, month, Depth],
     # and n is the number of groups in the comparison
     N, n = y_true_proportions.shape
-    diff = (y_true_proportions - y_pred_proportions)
-    mean_p_error = np.diagonal(np.dot(diff, diff.T)) / n # mean error per group
-    mean_p_error = mean_p_error.sum() / N # mean error over all samples
+    diff = np.abs(y_true_proportions - y_pred_proportions)
+    # mean_p_error = np.diagonal(np.dot(diff, diff.T)) / n # mean error per group
+    if all_groups:
+        mean_p_error = diff.sum(axis=1) / n # error per group
+        mean_p_error = mean_p_error.sum() / N # mean error over all samples
+    
+    else:
+        mean_p_error = diff.sum(axis=0) / N
     return mean_p_error
+
+def compare_by_mpe(df: pd.DataFrame, regression_models: Dict, predict_cols: List=None, predict_fn=None) -> pd.DataFrame:
+    if predict_cols is None:
+        predict_cols = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample', 'yellow_sub', 'Total conc']
+
+    # Function to predict biomass using the corresponding model for each row
+    def predict_biomass(row, model_name):
+        trained_model = regression_models[model_name][row['group_num']]
+        features = row[predict_cols]
+        preds = trained_model.predict([features])[0]
+        if predict_fn:
+            preds = predict_fn(preds)
+        return preds
+    
+    model_mpe_by_group = {'Model': [], 2: [], 3: [], 4: [], 5: [], 6: []}
+    for model_name in regression_models.keys():
+        temp_df = df.copy()
+        temp_df['predicted_biomass'] = df.apply(partial(predict_biomass, model_name=model_name), axis=1)
+
+        df_true_pivot = pivot_merged_df(temp_df)
+        df_predicted_pivot = pivot_merged_df(temp_df, pivot_col='predicted_biomass')
+
+        proportionalize(df_true_pivot, row_proportional_cols=[2, 3, 4, 5, 6])    
+        proportionalize(df_predicted_pivot, row_proportional_cols=[2, 3, 4, 5, 6])
+
+        y_true_proportions = df_true_pivot[[2,3,4,5,6]].values
+        y_predicted_proportions = df_predicted_pivot[[2,3,4,5,6]].values
+        scores = mean_proportion_error(y_true_proportions, y_predicted_proportions, all_groups=False)
+
+        for k, v in zip(['Model', 2, 3, 4, 5, 6], [model_name, *scores]):
+            model_mpe_by_group[k].append(v)
+
+    return pd.DataFrame(model_mpe_by_group)
+
+
+def calc_mpe_fp(df: pd.DataFrame) -> pd.DataFrame:
+    df_true_pivot = pivot_merged_df(df)
+    df_predicted_pivot = df[['week', 'month', 'year', 'Depth', 'Green Algae', 'Bluegreen', 'Diatoms', 'Cryptophyta']].drop_duplicates()
+
+    proportionalize(df_true_pivot, row_proportional_cols=[2, ])
+    proportionalize(df_predicted_pivot)
+
+    y_true_proportions = df_true_pivot[[2,3,4, 5, 6]].values
+    y_predicted_proportions = df_predicted_pivot[['Bluegreen', 'Diatoms', 'Green Algae', 'Cryptophyta']].values    
+    y_predicted_proportions = np.insert(y_predicted_proportions, 3, 0, axis=1)
+
+    scores = mean_proportion_error(y_true_proportions, y_predicted_proportions, all_groups=False)
+
+    mpe_by_group = {'Model': ['FP'], 2: [], 3: [], 4: [], 5: [],  6: []}
+    for k, score in zip([2, 3, 4, 5, 6], scores):
+        mpe_by_group[k] = score
+
+    return pd.DataFrame(mpe_by_group)
+
