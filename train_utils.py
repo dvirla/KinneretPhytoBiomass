@@ -289,13 +289,10 @@ def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map
 
 
 def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd.DataFrame, fluor_groups_map: Dict, biomass_fn=None,
-                       predictions_fn=None, new_col_prefix = '') -> pd.DataFrame:
+                       predictions_fn=None, new_col_prefix = '', model_names=None) -> pd.DataFrame:
     # Initialize an empty dictionary to store the predictions for each model and group
     all_predictions = {
-        'xgb': {},
-        'svr': {},
-        'elf': {},
-        'lr': {}
+        model_name: {} for model_name in model_names
     }
 
     # Iterate through each group number
