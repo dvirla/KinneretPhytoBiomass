@@ -371,3 +371,12 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
     plt.show()
 
     return comparison_df
+
+def mean_proportion_error(y_true_proportions: np.array, y_pred_proportions: np.array) -> float:
+    # y_true_proportions array of shape (N, n) where N is number of predictions - groups of [week, year, month, Depth],
+    # and n is the number of groups in the comparison
+    N, n = y_true_proportions.shape
+    diff = (y_true_proportions - y_pred_proportions)
+    mean_p_error = np.diagonal(np.dot(diff, diff.T)) / n # mean error per group
+    mean_p_error = mean_p_error.sum() / N # mean error over all samples
+    return mean_p_error
