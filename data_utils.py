@@ -111,11 +111,12 @@ def merge_fp_biomass_df(fp_df: pd.DataFrame, biomass_df: pd.DataFrame, is_train=
 
     return result_df.reset_index(drop=True)
 
-def proportionalize(df: pd.DataFrame, row_wise=True, new_col_prefix='') -> None:
+def proportionalize(df: pd.DataFrame, row_wise=True, new_col_prefix='', row_proportional_cols: List=None) -> None:
     # Transforming df to add new column or replace 'sum_biomass_ug_ml
     if row_wise:
         # Row-wise proportionalization
-        row_proportional_cols = ['Green Algae', 'Bluegreen', 'Diatoms', 'Cryptophyta']
+        if row_proportional_cols is None:
+            row_proportional_cols = ['Green Algae', 'Bluegreen', 'Diatoms', 'Cryptophyta']
         row_sums = df[row_proportional_cols].sum(axis=1)
         df[row_proportional_cols].div(row_sums, axis=0) * 100
         df[row_proportional_cols] = df[row_proportional_cols].div(row_sums, axis=0) * 100
