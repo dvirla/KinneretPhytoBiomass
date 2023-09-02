@@ -252,7 +252,8 @@ def plot_shap_values(df: pd.DataFrame, models_dict: Dict, df_test: pd.DataFrame)
         
     return shap_values_list
 
-def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map: Dict, fluor_test_df: pd.DataFrame, biomass_fn=None) -> None:
+def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map: Dict, fluor_test_df: pd.DataFrame, biomass_fn=None,
+                     predict_fn=None) -> None:
     # Visualize predictions along with test points
     fig, axes = plt.subplots(len(fluor_groups_map), 2, figsize=(13, 20))
 
@@ -267,6 +268,8 @@ def compare_to_fluor(regression_models: Dict, df: pd.DataFrame, fluor_groups_map
     
         model = regression_models[group_num]
         group_y_pred = model.predict(group_X_test.drop(['sum_biomass_ug_ml', 'group_num'], axis=1))
+        if predict_fn:
+            group_y_pred = predict_fn(group_y_pred)
 
         # Create a scatter plot to compare predicted values and actual test values
         axes[i, 0].scatter(group_y_test, group_y_pred, color='b', alpha=0.5)
