@@ -41,10 +41,13 @@ def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.
 
     for group_num in df['group_num'].unique():
         group_df = df[df['group_num'] == group_num]
+        if biomass_fn is not None:
+            group_df['sum_biomass_ug_ml'] = group_df['sum_biomass_ug_ml'].apply(biomass_fn)
+            group_df = group_df.dropna().reset_index(drop=True)
+
         X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
         y = group_df['sum_biomass_ug_ml']
-        if biomass_fn is not None:
-            y = biomass_fn(y)
+
         if do_noise:
             # Add some noise to y
             noise_factor = 0.08
