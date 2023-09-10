@@ -422,21 +422,27 @@ def compare_by_mpe(df: pd.DataFrame, regression_models: Dict, predict_cols: List
     return pd.DataFrame(model_mpe_by_group)
 
 
-def calc_mpe_fp(df: pd.DataFrame) -> pd.DataFrame:
+def calc_mpe_fp(df: pd.DataFrame, with_group_5=True) -> pd.DataFrame:
     df_true_pivot = pivot_merged_df(df)
     df_predicted_pivot = df[['week', 'month', 'year', 'Depth', 'Green Algae', 'Bluegreen', 'Diatoms', 'Cryptophyta']].drop_duplicates()
 
-    proportionalize(df_true_pivot, row_proportional_cols=[2, ])
+    row_proportional_cols = [2, 3, 4, 5, 6]
+    mpe_by_group = {'Model': ['FP'], 2: [], 3: [], 4: [], 5: [],  6: []}
+    if not with_group_5:
+        row_proportional_cols.remove(5)
+        mpe_by_group.pop(5)
+
+    proportionalize(df_true_pivot, row_proportional_cols=row_proportional_cols)
     proportionalize(df_predicted_pivot)
 
-    y_true_proportions = df_true_pivot[[2,3,4, 5, 6]].values
-    y_predicted_proportions = df_predicted_pivot[['Bluegreen', 'Diatoms', 'Green Algae', 'Cryptophyta']].values    
-    y_predicted_proportions = np.insert(y_predicted_proportions, 3, 0, axis=1)
+    y_true_proportions = df_true_pivot[row_proportional_cols].values
+    y_predicted_proportions = df_predicted_pivot[['Bluegreen', 'Diatoms', 'Green Algae', 'Cryptophyta']].values
+    if with_group_5:    
+        y_predicted_proportions = np.insert(y_predicted_proportions, 3, 0, axis=1)
 
     scores = mean_proportion_error(y_true_proportions, y_predicted_proportions, all_groups=False)
 
-    mpe_by_group = {'Model': ['FP'], 2: [], 3: [], 4: [], 5: [],  6: []}
-    for k, score in zip([2, 3, 4, 5, 6], scores):
+    for k, score in zip(row_proportional_cols, scores):
         mpe_by_group[k] = score
 
     return pd.DataFrame(mpe_by_group)
