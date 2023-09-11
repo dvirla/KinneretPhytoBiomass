@@ -43,6 +43,11 @@ def train(model_name: str, df: pd.DataFrame, group_kwargs: Dict={}, test_size=0.
         group_df = df[df['group_num'] == group_num]
         if biomass_fn is not None:
             group_df['sum_biomass_ug_ml'] = group_df['sum_biomass_ug_ml'].apply(biomass_fn)
+            # Check for 'inf' or '-inf' values in the DataFrame
+            inf_mask = (group_df == np.inf) | (group_df == -np.inf)
+            # Drop records (rows) with 'inf' or '-inf' values
+            group_df = group_df[~inf_mask.any(axis=1)]
+
             group_df = group_df.dropna().reset_index(drop=True)
 
         X = group_df.drop(['sum_biomass_ug_ml', 'group_num'], axis=1)
