@@ -409,7 +409,8 @@ def compare_by_mpe(df: pd.DataFrame, regression_models: Dict, predict_cols: List
             preds = predict_fn(preds)
         return preds
     
-    model_mpe_by_group = {'Model': [], 2: [], 3: [], 4: [], 5: [], 6: []}
+    # TODO: Check this groups 7 & 9
+    model_mpe_by_group = {'Model': [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 9: []}
     for model_name in regression_models.keys():
         temp_df = df.copy()
         temp_df['predicted_biomass'] = df.apply(partial(predict_biomass, model_name=model_name), axis=1)
@@ -417,14 +418,14 @@ def compare_by_mpe(df: pd.DataFrame, regression_models: Dict, predict_cols: List
         df_true_pivot = pivot_merged_df(temp_df)
         df_predicted_pivot = pivot_merged_df(temp_df, pivot_col='predicted_biomass')
 
-        proportionalize(df_true_pivot, row_proportional_cols=[2, 3, 4, 5, 6])    
-        proportionalize(df_predicted_pivot, row_proportional_cols=[2, 3, 4, 5, 6])
+        proportionalize(df_true_pivot, row_proportional_cols=[2, 3, 4, 5, 6, 7, 9])    
+        proportionalize(df_predicted_pivot, row_proportional_cols=[2, 3, 4, 5, 6, 7, 9])
 
-        y_true_proportions = df_true_pivot[[2,3,4,5,6]].values
-        y_predicted_proportions = df_predicted_pivot[[2,3,4,5,6]].values
+        y_true_proportions = df_true_pivot[[2,3,4,5,6, 7, 9]].values
+        y_predicted_proportions = df_predicted_pivot[[2,3,4,5,6, 7, 9]].values
         scores = mean_proportion_error(y_true_proportions, y_predicted_proportions, all_groups=False)
 
-        for k, v in zip(['Model', 2, 3, 4, 5, 6], [model_name, *scores]):
+        for k, v in zip(['Model', 2, 3, 4, 5, 6,7 ,9], [model_name, *scores]):
             model_mpe_by_group[k].append(v)
 
     return pd.DataFrame(model_mpe_by_group)
@@ -434,11 +435,16 @@ def calc_mpe_fp(df: pd.DataFrame, with_group_5=True) -> pd.DataFrame:
     df_true_pivot = pivot_merged_df(df)
     df_predicted_pivot = df[['week', 'month', 'year', 'Depth', 'Green Algae', 'Bluegreen', 'Diatoms', 'Cryptophyta']].drop_duplicates()
 
-    row_proportional_cols = [2, 3, 4, 5, 6]
-    mpe_by_group = {'Model': ['FP'], 2: [], 3: [], 4: [], 5: [],  6: []}
+    # TODO: Check this groups 7 & 9
+    row_proportional_cols = [2, 3, 4, 5, 6, 7, 9]
+    mpe_by_group = {'Model': ['FP'], 2: [], 3: [], 4: [], 5: [],  6: [], 7: [], 9: []}
     if not with_group_5:
         row_proportional_cols.remove(5)
+        row_proportional_cols.remove(7)
+        row_proportional_cols.remove(9)
         mpe_by_group.pop(5)
+        mpe_by_group.pop(7)
+        mpe_by_group.pop(9)
 
     proportionalize(df_true_pivot, row_proportional_cols=row_proportional_cols)
     proportionalize(df_predicted_pivot)
