@@ -228,7 +228,7 @@ def residual_analysis(df: pd.DataFrame, regression_models: Dict, biomass_fn=None
     plt.tight_layout()
     plt.show()
 
-def plot_shap_values(df: pd.DataFrame, models_dict: Dict, df_test: pd.DataFrame) -> Dict:    
+def plot_shap_values(df: pd.DataFrame, models_dict: Dict, df_test: pd.DataFrame, do_sample=False) -> Dict:    
     # Initialize a list to store the Shapley values for each model
     shap_values_list = {}
     
@@ -237,6 +237,8 @@ def plot_shap_values(df: pd.DataFrame, models_dict: Dict, df_test: pd.DataFrame)
         # Get the model's predictions for the current group_num dataset
         # Convert the dataframe to a matrix for shap values computation
         group_rows = df[df['group_num'] == group_num].drop(['group_num', 'sum_biomass_ug_ml'], axis=1)
+        if do_sample:
+            group_rows = group_rows.sample(150)
         X = group_rows.values
         
         # Compute the model's predictions for the current group_num dataset
