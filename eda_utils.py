@@ -7,13 +7,17 @@ from typing import List, Dict
 import numpy as np
 
 
-def boxplot_biomass_by_group(df: pd.DataFrame) -> None:
+def boxplot_biomass_by_group(orig_df: pd.DataFrame, figure_titles) -> None:
     # Create the boxplot
-    plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
+    plt.figure(figsize=(5, 4), dpi=300)
+    df = orig_df.copy()
+    df['group_num'] = df['group_num'].apply(lambda x: figure_titles[str(x)])
     sns.boxplot(data=df, x='group_num', y='sum_biomass_ug_ml')
-    plt.title('Boxplot of sum_biomass_ug_ml by group_num')
-    plt.xlabel('Group Number')
-    plt.ylabel('Sum Biomass (ug/ml)')
+    # plt.title('Boxplot of sum_biomass_ug_ml by group_num')
+    plt.xlabel('Taxonomic Groups', fontsize=12)
+    plt.xticks(rotation=90)
+    plt.ylabel('Sum Biomass (ug/ml)', fontsize=12)
+    plt.tight_layout()
     plt.show()
 
 def violin_biomass_by_group(df: pd.DataFrame) -> None:
@@ -188,18 +192,23 @@ def plot_corr_per_feature_per_group(df: pd.DataFrame, fluor_groups_map: Dict) ->
         plt.tight_layout()
         plt.show()
 
-def groups_pie_chart(df: pd.DataFrame, by_biomass=False) -> None:
+def groups_pie_chart(orig_df: pd.DataFrame, figure_titles: Dict, by_biomass=False) -> None:
     # Count the occurrences of each unique group_num
+    df = orig_df.copy()
+    df['group_num'] = df['group_num'].apply(lambda x: figure_titles[str(x)])
     if by_biomass:
+        random_seed = 42
         group_counts = df.groupby('group_num')['sum_biomass_ug_ml'].sum()
+        group_counts = group_counts.sample(frac=1, random_state=random_seed)
     else:
         group_counts = df['group_num'].value_counts()
 
     # Create a pie chart
-    plt.figure(figsize=(8, 8))  # Adjust the figure size as needed
+    plt.figure(figsize=(5, 4), dpi=300)
     plt.pie(group_counts, labels=group_counts.index, autopct='%1.1f%%', startangle=140)
-    plt.title('Proportion of Each Unique group_num')
+    # plt.title('Proportion of Each Unique group_num')
     plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-
+    
     # Display the pie chart
+    plt.tight_layout()
     plt.show()
