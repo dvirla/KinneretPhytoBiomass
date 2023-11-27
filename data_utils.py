@@ -16,7 +16,7 @@ def get_biomass_data(phyt_cod_path: str, phyto_path: str) -> pd.DataFrame:
 
     # Filtering currently non relevant phytoplankton groups
     # TODO: Check groups 7 and 9
-    phyt_cod_df = phyt_cod_df[phyt_cod_df['group_num'].isin(['2', '3', '4', '5', '6', '7', '9'])]
+    phyt_cod_df = phyt_cod_df[phyt_cod_df['group_num'].isin(['2', '3', '4', '5', '6'])]
     phyt_cod_df['group_num'] = phyt_cod_df['group_num'].apply(lambda x: int(x))
 
     # Merging lab data and group codes
