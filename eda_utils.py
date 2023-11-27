@@ -192,23 +192,60 @@ def plot_corr_per_feature_per_group(df: pd.DataFrame, fluor_groups_map: Dict) ->
         plt.tight_layout()
         plt.show()
 
-def groups_pie_chart(orig_df: pd.DataFrame, figure_titles: Dict, by_biomass=False) -> None:
+def groups_pie_chart(orig_df: pd.DataFrame, figure_titles: Dict, custom_palette) -> None:
     # Count the occurrences of each unique group_num
     df = orig_df.copy()
-    df['group_num'] = df['group_num'].apply(lambda x: figure_titles[str(x)])
-    if by_biomass:
-        random_seed = 42
-        group_counts = df.groupby('group_num')['sum_biomass_ug_ml'].sum()
-        group_counts = group_counts.sample(frac=1, random_state=random_seed)
-    else:
-        group_counts = df['group_num'].value_counts()
+    df['group_num_title'] = df['group_num'].apply(lambda x: figure_titles[str(x)])
+    
+    random_seed = 42
+    group_counts = df.groupby('group_num_title')['sum_biomass_ug_ml'].sum()
+    group_counts = group_counts.sample(frac=1, random_state=random_seed)
 
     # Create a pie chart
-    plt.figure(figsize=(5, 4), dpi=300)
-    plt.pie(group_counts, labels=group_counts.index, autopct='%1.1f%%', startangle=140)
+    plt.figure(figsize=(8, 6), dpi=300)
+    plt.rcParams['font.size'] = 12
+    plt.pie(group_counts, labels=sorted(group_counts.index), autopct='%1.1f%%', startangle=140, colors=[custom_palette[group] for group in sorted(group_counts.index)])
     # plt.title('Proportion of Each Unique group_num')
     plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-    
+    plt.legend(bbox_to_anchor=(0.85, 0.95), loc='upper left', fontsize=8)
+
     # Display the pie chart
     plt.tight_layout()
+    plt.show()
+
+def groups_biomass_by_column(orig_df: pd.DataFrame, figure_titles: Dict, custom_palette, col_to_groupby) -> None:
+    # Count the occurrences of each unique group_num
+    df = orig_df.copy()
+    df['group_num_title'] = df['group_num'].apply(lambda x: figure_titles[str(x)])
+
+    grouped_biomass_df = df.groupby(['group_num', col_to_groupby])['sum_biomass_ug_ml'].sum().reset_index()
+
+    # Calculate the total sum for each Depth
+    grouped_biomass_df['total_sum'] = grouped_biomass_df.groupby(col_to_groupby)['sum_biomass_ug_ml'].transform('sum')
+
+    # Normalize sum_biomass_ug_ml to show percentages
+    grouped_biomass_df['percentage'] = (grouped_biomass_df['sum_biomass_ug_ml'] / grouped_biomass_df['total_sum'])
+
+    grouped_biomass_df['group_num_title'] = grouped_biomass_df['group_num'].apply(lambda x: figure_titles[str(x)])
+
+    # Pivot the DataFrame to make it suitable for a stacked bar plot
+    df_pivot = grouped_biomass_df.pivot(index=col_to_groupby, columns='group_num_title', values='percentage')
+
+    # Plotting the stacked bar plot    
+    if col_to_groupby == 'month':
+        fig, ax = plt.subplots(figsize=(12, 8), dpi=300)
+    else:
+        fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+    plt.rcParams['font.size'] = 12
+    df_pivot.plot(kind='bar', stacked=True, color=[custom_palette[group] for group in sorted(grouped_biomass_df['group_num_title'].unique())], ax=ax)
+
+    # Set labels and title
+    ax.set_xlabel('')
+    if col_to_groupby == 'Depth':
+        ax.set_xticklabels(['0-3', '3-5', '5-10', '10-15', '15-20', '20-43'])
+    ax.set_ylabel('Proportion of Total Biomass (ug/ml)')
+    # ax.set_title('Stacked Bar Plot of Percentage of sum_biomass_ug_ml by Depth and group_num')
+    ax.get_legend().remove()
+
+    # Show the plot
     plt.show()
