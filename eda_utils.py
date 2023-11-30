@@ -202,12 +202,12 @@ def groups_pie_chart(orig_df: pd.DataFrame, figure_titles: Dict, custom_palette)
     group_counts = group_counts.sample(frac=1, random_state=random_seed)
 
     # Create a pie chart
-    plt.figure(figsize=(8, 6), dpi=300)
-    plt.rcParams['font.size'] = 12
+    plt.figure(figsize=(5, 4), dpi=300)
+    plt.rcParams['font.size'] = 9
     plt.pie(group_counts, labels=sorted(group_counts.index), autopct='%1.1f%%', startangle=140, colors=[custom_palette[group] for group in sorted(group_counts.index)])
     # plt.title('Proportion of Each Unique group_num')
     plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-    plt.legend(bbox_to_anchor=(0.85, 0.95), loc='upper left', fontsize=8)
+    plt.legend(bbox_to_anchor=(1.3, -0.1), loc='lower right', fontsize=7)
 
     # Display the pie chart
     plt.tight_layout()
@@ -233,17 +233,18 @@ def groups_biomass_by_column(orig_df: pd.DataFrame, figure_titles: Dict, custom_
 
     # Plotting the stacked bar plot    
     if col_to_groupby == 'month':
-        fig, ax = plt.subplots(figsize=(12, 8), dpi=300)
+        fig, ax = plt.subplots(figsize=(32.5, 12), dpi=300)
+        plt.rcParams['font.size'] = 30
     else:
-        fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
-    plt.rcParams['font.size'] = 12
+        fig, ax = plt.subplots(figsize=(5, 4), dpi=300)
+        plt.rcParams['font.size'] = 12
     df_pivot.plot(kind='bar', stacked=True, color=[custom_palette[group] for group in sorted(grouped_biomass_df['group_num_title'].unique())], ax=ax)
 
     # Set labels and title
     ax.set_xlabel('')
     if col_to_groupby == 'Depth':
         ax.set_xticklabels(['0-3', '3-5', '5-10', '10-15', '15-20', '20-43'])
-    ax.set_ylabel('Proportion of Total Biomass (ug/ml)')
+    ax.set_ylabel('Fraction of Total Biomass (ug/ml)')
     # ax.set_title('Stacked Bar Plot of Percentage of sum_biomass_ug_ml by Depth and group_num')
     ax.get_legend().remove()
 
