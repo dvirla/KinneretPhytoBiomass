@@ -199,7 +199,7 @@ def groups_pie_chart(orig_df: pd.DataFrame, figure_titles: Dict, custom_palette)
     
     random_seed = 42
     group_counts = df.groupby('group_num_title')['sum_biomass_ug_ml'].sum()
-    group_counts = group_counts.sample(frac=1, random_state=random_seed)
+    # group_counts = group_counts.sample(frac=1, random_state=random_seed)
 
     # Create a pie chart
     plt.figure(figsize=(5, 4), dpi=300)
