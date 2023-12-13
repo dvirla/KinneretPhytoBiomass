@@ -34,7 +34,7 @@ def violin_biomass_by_group(df: pd.DataFrame) -> None:
     plt.tight_layout()
     plt.show()
 
-def boxplot_by_depth(df: pd.DataFrame, signals: List=None, by_col: str='depth_discrete') -> None:
+def boxplot_by_depth(df: pd.DataFrame, signals: List=None, by_col: str='depth_discrete', figure_titles=None) -> None:
     # List of signals you want to plot
     if not signals:
         signals = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample', 'yellow_sub']
@@ -233,8 +233,8 @@ def groups_biomass_by_column(orig_df: pd.DataFrame, figure_titles: Dict, custom_
 
     # Plotting the stacked bar plot    
     if col_to_groupby == 'month':
-        fig, ax = plt.subplots(figsize=(32.5, 12), dpi=300)
-        plt.rcParams['font.size'] = 30
+        fig, ax = plt.subplots(figsize=(5, 4), dpi=300)
+        plt.rcParams['font.size'] = 12
     else:
         fig, ax = plt.subplots(figsize=(5, 4), dpi=300)
         plt.rcParams['font.size'] = 12
@@ -247,6 +247,6 @@ def groups_biomass_by_column(orig_df: pd.DataFrame, figure_titles: Dict, custom_
     ax.set_ylabel('Fraction of Total Biomass (ug/ml)')
     # ax.set_title('Stacked Bar Plot of Percentage of sum_biomass_ug_ml by Depth and group_num')
     ax.get_legend().remove()
-
+    plt.xticks(rotation=45)
     # Show the plot
     plt.show()

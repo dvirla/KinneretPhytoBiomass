@@ -349,7 +349,7 @@ def compare_all_models(regression_models: dict, df_test: pd.DataFrame, fp_df: pd
     num_models = len(all_predictions)
 
     # Set the size of the subplots
-    fig, axs = plt.subplots(num_groups, num_models + 1, figsize=(30, 30))
+    fig, axs = plt.subplots(num_groups, num_models + 1, figsize=(12, 17), dpi=300)
 
     # Iterate through each group number
     for i, group_num in enumerate(sorted(df_test['group_num'].unique())):
