@@ -37,7 +37,7 @@ def violin_biomass_by_group(df: pd.DataFrame) -> None:
 def boxplot_by_depth(df: pd.DataFrame, signals: List=None, by_col: str='depth_discrete', figure_titles=None) -> None:
     # List of signals you want to plot
     if not signals:
-        signals = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample', 'yellow_sub']
+        signals = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample']
 
     # Create subplots
     fig, axes = plt.subplots(nrows=len(signals), ncols=1, figsize=(10, 20), sharex=True)
@@ -95,7 +95,7 @@ def plot_tsne(orig_df: pd.DataFrame) -> None:
     df = df.sort_values(by=['year', 'month', 'week', 'group_num'])
 
     # Step 2: Calculate the mean over 'year', 'month', and 'group_num'
-    signal_columns = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample', 'yellow_sub']
+    signal_columns = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample']
 
     idx = df.groupby(['year', 'month', 'week'])[signal_columns + ['sum_biomass_ug_ml']].idxmax()
 
@@ -173,7 +173,7 @@ def plot_fluorprobe_prediction(df: pd.DataFrame, fluor_groups_map: Dict) -> None
 
 def plot_corr_per_feature_per_group(df: pd.DataFrame, fluor_groups_map: Dict) -> None:
     # Visualize predictions along with test points
-    signal_cols = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample', 'yellow_sub']
+    signal_cols = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample']
     for group_num in fluor_groups_map.keys():
         fig, axes = plt.subplots(5, 2, figsize=(16, 12))
 

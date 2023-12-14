@@ -400,7 +400,7 @@ def mean_proportion_error(y_true_proportions: np.array, y_pred_proportions: np.a
 
 def compare_by_mpe(df: pd.DataFrame, regression_models: Dict, predict_cols: List=None, predict_fn=None) -> pd.DataFrame:
     if predict_cols is None:
-        predict_cols = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample', 'yellow_sub']
+        predict_cols = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample']
 
     # Function to predict biomass using the corresponding model for each row
     def predict_biomass(row, model_name):
