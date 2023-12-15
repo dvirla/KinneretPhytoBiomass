@@ -39,16 +39,26 @@ def boxplot_by_depth(df: pd.DataFrame, signals: List=None, by_col: str='depth_di
     if not signals:
         signals = ['red', 'green', 'yellow', 'orange', 'violet', 'brown', 'blue', 'pressure', 'temp_sample']
 
+    signal_names_to_nm = {'red': '700 nm',
+                            'green': '525 nm',
+                            'yellow': '570 nm',
+                            'orange': '610 nm',
+                            'violet': '370 nm',
+                            'brown': '590 nm',
+                            'blue': '470 nm',
+                            'pressure': 'Pressure',
+                            'temp_sample': 'Temperature',
+                        }
     # Create subplots
-    fig, axes = plt.subplots(nrows=len(signals), ncols=1, figsize=(10, 20), sharex=True)
+    fig, axes = plt.subplots(nrows=len(signals), ncols=1, figsize=(13, 20), sharex=True)
 
     # Loop through each signal and create a boxplot
     for idx, signal in enumerate(signals):
         ax = axes[idx]
         sns.boxplot(x=by_col, y=signal, data=df, ax=ax)
-        ax.set_ylabel(signal)
+        ax.set_ylabel(signal_names_to_nm[signal])
         ax.set_xlabel(f'{by_col}')
-        ax.set_title(f'Boxplot of {signal} by {by_col}')
+        ax.set_title(f'{signal_names_to_nm[signal]}')
 
     plt.tight_layout()
     plt.show()
