@@ -48,6 +48,7 @@ def boxplot_by_depth(df: pd.DataFrame, signals: List=None, by_col: str='depth_di
                             'blue': '470 nm',
                             'pressure': 'Pressure',
                             'temp_sample': 'Temperature',
+                            'Total conc': 'Total Chl concentration',
                         }
     # Create subplots
     fig, axes = plt.subplots(nrows=len(signals), ncols=1, figsize=(13, 20), sharex=True)

@@ -49,7 +49,7 @@ def get_fluorprobe_data(path: str) -> pd.DataFrame:
     fp_df = fp_df[fp_df['station'] == 'A'].reset_index(drop=True)
     fp_df = fp_df[['Date_time', 'Date','depth', 'Trans 700 nm', 'LED 3 525 nm', 'LED 4  570 nm', 'LED 5  610 nm',
                 'LED 6  370 nm', 'LED 7  590 nm', 'LED 8  470 nm', 'Pressure', 'Temp Sample',
-                    'Green Algae', 'Bluegreen', 'Diatoms', 'Cryptophyta']]
+                    'Green Algae', 'Bluegreen', 'Diatoms', 'Cryptophyta', 'Total conc']]
 
     color_names = {
         'Trans 700 nm': 'red',
